@@ -4,6 +4,9 @@ from gym import spaces
 import numpy as np
 
 
+width = height = 500  # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
+
+
 # creo un custom space
 class Boolean(gym.Space):
     def __init__(self, size=None):
@@ -14,13 +17,6 @@ class Boolean(gym.Space):
     def sample(self):
         bool = [random.choice([True, False]) for i in range(self.size)]
         return bool
-
-
-width = height = 500  # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
-
-episodes = 5
-ticks_per_episode = 700
-# consigliabile almeno 500 tick_per_episode, altrimenti difficile vedere fenomeni di aggregazione
 
 
 class Slime(gym.Env):
@@ -36,6 +32,7 @@ class Slime(gym.Env):
         self.population = population
         self.count_ticks_cluster = 0  # conta i tick che la turtle passa in un cluster
         self.cluster_limit = cluster_limit  # numero min di turtle affinché si consideri cluster (in range 20)
+        self.first_gui = True
 
         # create learner turtle
         self.cord_learner_turtle = [np.random.randint(10, width - 10) for i in range(2)]
@@ -336,11 +333,14 @@ class Slime(gym.Env):
         return self.observation, self.reward, False, {}
 
     def render(self):
-        pygame.init()
-        self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("SLIME")
+        if self.first_gui:
+            self.first_gui = False
+            pygame.init()
+            self.screen = pygame.display.set_mode((width, height))
+            pygame.display.set_caption("SLIME")
+            self.clock = pygame.time.Clock()
         self.screen.fill((0, 0, 0))
-        self.clock = pygame.time.Clock()
+        #self.clock = pygame.time.Clock()
         self.clock.tick(self.metadata["render_fps"])
 
         # Disegno LA turtle learner!
@@ -357,7 +357,9 @@ class Slime(gym.Env):
 
 
 #   MAIN
-
+episodes = 5
+ticks_per_episode = 700
+# consigliabile almeno 500 tick_per_episode, altrimenti difficile vedere fenomeni di aggregazione
 
 env = Slime()
 for ep in range(1, episodes+1):

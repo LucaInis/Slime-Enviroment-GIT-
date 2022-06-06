@@ -11,11 +11,15 @@ class Boolean(gym.Space):
     def __init__(self, size=None):
         assert isinstance(size, int) and size > 0
         self.size = size
+        self.state = [False for i in range(self.size)]
         gym.Space.__init__(self, (), bool)
 
     def sample(self):
         bool = [random.choice([True, False]) for i in range(self.size)]
         return bool
+
+    def get(self, d):
+        return self.state[d]
 
 
 width = height = 500  # dimensioni pop up pygame
@@ -46,7 +50,7 @@ class Slime(AECEnv):
 
         # inizializzo il selettore e observation
         self._agent_selector = agent_selector(self.agents)
-        self.observation = [False, False]
+        self.observations = {agent: Boolean for agent in self.agents}
 
         self.rewards = {a: 0 for a in self.agents}  # reward from the last step for each agent
         self._cumulative_rewards_ = {a: 0 for a in self.agents}  # cumulative rewards for each agent
@@ -368,6 +372,7 @@ for ep in range(episodes):
         env.moving()
         for agent in env.agent_iter(max_iter=learner_population):
             #observation, reward, done, info = env.last()
+
             env.step(0)
         env.render()
         env.evaporate_chemical()
