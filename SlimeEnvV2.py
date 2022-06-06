@@ -166,14 +166,14 @@ class Slime(gym.Env):
             else:
                 pass
 
-        reward = Slime.rewardfunc7(self)  # <--reward function in uso
+        cur_reward = Slime.rewardfunc7(self)  # <--reward function in uso
 
         # EVAPORATE CHEMICAL
         self._evaporate()
 
         self.observation = Slime._get_obs(self)
 
-        return self.observation, reward, False, {}
+        return self.observation, cur_reward, False, {}
 
     def drop_chemical(self):
         """
@@ -374,18 +374,18 @@ class Slime(gym.Env):
         reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside clusters
         :return:
         """
-        reward = 0
+        cur_reward = 0
         _count_cluster(self)
         if self.count_turtle >= self.cluster_threshold:
             self.count_ticks_cluster += 1
 
         # calcolo la reward
-        reward = ((self.count_turtle ^ 2) / self.cluster_threshold) * self.reward \
+        cur_reward = ((self.count_turtle ^ 2) / self.cluster_threshold) * self.reward \
                       + \
                       (((ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode) * self.penalty)
 
-        self.reward_list.append(reward)
-        return reward
+        self.reward_list.append(cur_reward)
+        return cur_reward
 
     def reset(self):
         self.reward_list = []
@@ -438,7 +438,7 @@ class Slime(gym.Env):
 
 #   MAIN
 episodes = 5
-ticks_per_episode = 700
+ticks_per_episode = 10
 # consigliabile almeno 500 tick_per_episode, altrimenti difficile vedere fenomeni di aggregazione
 
 env = Slime(sniff_threshold=12, step=5, cluster_threshold=5, population=100, grid_size=500)
