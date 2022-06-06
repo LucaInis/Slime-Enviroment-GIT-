@@ -1,3 +1,5 @@
+from typing import Optional
+
 import gym
 import pygame
 from gym import spaces
@@ -21,13 +23,18 @@ class Slime(gym.Env):
     metadata = {"render_modes": "human", "render_fps": 30}
 
     # cluster_limit = cluster_threshold
-    def __init__(self, sniff_threshold=12,  # controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)—unclear effect on learning, could be negligible
+    def __init__(self,
+                 render_mode: Optional[str] = None,
+                 sniff_threshold=12,  # controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)—unclear effect on learning, could be negligible
                  step=5,                    # QUESTION di quanti pixels si muovono le turtles?
                  cluster_threshold=5,       # controls the minimum number of slimes needed to consider an aggregate within cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more difficult to obtain a positive reward for being within a cluster for learning slimes
                  population=650,            # controls the number of non-learning slimes (= green turtles)
                  grid_size=500):            # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
+        assert render_mode is None or render_mode in self.metadata["render_modes"]
+
         self.sniff_threshold = sniff_threshold
-        self.reward = 0
+        self.reward = 100  # TODO rendere parametrico
+        self.penalty = -1  # TODO rendere parametrico
         self.reward_list = []
         self.step = step  # di quanto si muovono le turtle ogni tick
         self.population = population
@@ -57,14 +64,14 @@ class Slime(gym.Env):
         self.observation = [False, False]  # FIXME di fatto non usi lo spazio in questo modo
 
     # step function
-    def moving_turtle(self, action: int):
+    def step(self, action):  # NB check whether type-hint "int" is a problem for Gym Env sub-classing
         # MOVING NON LEARNER SLIME
         for turtle in self.cord_non_learner_turtle:
             self.max_lv = 0
             self.cord_max_lv = []
             self.bonds = []
 
-            self.find_max_lv(turtle)  # DOC find patch where chemical is max
+            self._find_max_lv(turtle)  # DOC find patch where chemical is max
 
             if self.max_lv > self.sniff_threshold:
 
@@ -75,12 +82,10 @@ class Slime(gym.Env):
                 self.rng_walk(turtle)
 
             # DROP CHEMICALS
-            for x in range(self.bonds[0], self.bonds[2]):
-                for y in range(self.bonds[1], self.bonds[3]):
-                    self.chemicals_level[str(x) + str(y)] += 2  # TODO rendere parametrica la quantità di feromone, come 'chemical-drop' in netlogo
+            self.drop_chemical()
 
             # PER EVITARE ESCANO DALLO SCHERMO
-            self.keep_in_screen(turtle)
+            self._keep_in_screen(turtle)
 
         # FIXME codice quasi esattamente duplicato da find_max_lv()
         # MOVING LEARNER SLIME
@@ -161,21 +166,40 @@ class Slime(gym.Env):
             else:
                 pass
 
-        self.reward = Slime.rewardfunc7(self)  # <--reward function in uso
+        reward = Slime.rewardfunc7(self)  # <--reward function in uso
 
         # EVAPORATE CHEMICAL
-        self.evaporate()
+        self._evaporate()
 
-        self.observation = Slime.get_obs(self)
+        self.observation = Slime._get_obs(self)
 
-        return self.observation, self.reward, False, {}
+        return self.observation, reward, False, {}
 
-    def evaporate(self):
+    def drop_chemical(self):
+        """
+        Action 1: drop chemical in patch where turtle is
+        :return:
+        """
+        for x in range(self.bonds[0], self.bonds[2]):
+            for y in range(self.bonds[1], self.bonds[3]):
+                self.chemicals_level[str(x) + str(
+                    y)] += 2  # TODO rendere parametrica la quantità di feromone, come 'chemical-drop' in netlogo
+
+    def _evaporate(self):
+        """
+        evaporate pheromone
+        :return:
+        """
         for patch in self.chemicals_level:
             if self.chemicals_level[patch] != 0:
                 self.chemicals_level[patch] -= 2  # TODO rendere parametrico come 'evaporation-rate' in netlogo
 
-    def keep_in_screen(self, turtle):
+    def _keep_in_screen(self, turtle):
+        """
+        keep turtles within screen
+        :param turtle:
+        :return:
+        """
         if self.cord_non_learner_turtle[turtle][0] > self.width - 10:
             self.cord_non_learner_turtle[turtle][0] = self.width - 15
         elif self.cord_non_learner_turtle[turtle][0] < 10:
@@ -186,6 +210,11 @@ class Slime(gym.Env):
             self.cord_non_learner_turtle[turtle][1] = 15
 
     def rng_walk(self, turtle):
+        """
+        Action 0: move in random direction
+        :param turtle:
+        :return:
+        """
         act = np.random.randint(4)
         if act == 0:
             self.cord_non_learner_turtle[turtle][0] += self.step
@@ -202,7 +231,7 @@ class Slime(gym.Env):
 
     def follow_pheromone(self, turtle):
         """
-        Move turtle towards greatest pheromone found by find_max_lv()
+        Action 2: move turtle towards greatest pheromone found by _find_max_lv()
         :param turtle: the turtle to move
         :return: the new turtle x,y
         """
@@ -245,7 +274,7 @@ class Slime(gym.Env):
         else:
             pass  # allora il punto è dove mi trovo quindi stò fermo
 
-    def find_max_lv(self, turtle):
+    def _find_max_lv(self, turtle):
         """
         find patch where chemical pheromone level is max within radius
         :param turtle: the sniffing turtle
@@ -271,26 +300,36 @@ class Slime(gym.Env):
                     self.cord_max_lv.append(x)
                     self.cord_max_lv.append(y)
 
-    def get_obs(self):
-        # controllo la presenza di feromone o meno nella patch, da spostare
-        if self.chemicals_level[str(self.cord_learner_turtle[0]) + str(self.cord_learner_turtle[1])] != 0:
-            self.observation[1] = True
-        else:
-            self.observation[1] = False
+    def _get_obs(self):
+        # controllo la presenza di feromone o meno nella patch, da spostare QUESTION perchè "da spostare"?
+        self._check_chemical()
+
         # controllo if in cluster
+        self._count_cluster()
+
+        if self.count_turtle >= self.cluster_threshold:
+            self.observation[0] = True
+        else:
+            self.observation[0] = False
+
+        return self.observation
+
+    def _count_cluster(self):
         self.count_turtle = 1
         self.check_cord = []
-        for x in range(self.cord_learner_turtle[0] - 9, self.cord_learner_turtle[0] + 10):
+        for x in range(self.cord_learner_turtle[0] - 9, self.cord_learner_turtle[
+                                                            0] + 10):  #  TODO rendere parametrico come 'cluster-threshlod' in netlogo
             for y in range(self.cord_learner_turtle[1] - 9, self.cord_learner_turtle[1] + 10):
                 self.check_cord.append([x, y])
         for pair in self.cord_non_learner_turtle.values():
             if pair in self.check_cord:
                 self.count_turtle += 1
-        if self.count_turtle >= self.cluster_threshold:
-            self.observation[0] = True
+
+    def _check_chemical(self):
+        if self.chemicals_level[str(self.cord_learner_turtle[0]) + str(self.cord_learner_turtle[1])] != 0:
+            self.observation[1] = True
         else:
-            self.observation[0] = False
-        return self.observation
+            self.observation[1] = False
 
     def rewardfunc1(self):
         self.count_turtle = 1
@@ -331,30 +370,24 @@ class Slime(gym.Env):
         return self.count_ticks_cluster
 
     def rewardfunc7(self):
-        self.reward = 0
-        self.count_turtle = 1
-        self.check_cord = []
-        for x in range(self.cord_learner_turtle[0] - 9, self.cord_learner_turtle[0] + 10):
-            for y in range(self.cord_learner_turtle[1] - 9, self.cord_learner_turtle[1] + 10):
-                self.check_cord.append([x, y])
-        for pair in self.cord_non_learner_turtle.values():
-            if pair in self.check_cord:
-                self.count_turtle += 1
+        """
+        reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside clusters
+        :return:
+        """
+        reward = 0
+        _count_cluster(self)
         if self.count_turtle >= self.cluster_threshold:
             self.count_ticks_cluster += 1
-            # calcolo la reward
-            self.reward = ((self.count_turtle ^ 2) / self.cluster_threshold) + (
-                        (ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode)
-            self.reward_list.append(self.reward)
-        else:
-            self.reward = -0.5  # assegno una penalty perché NON si trova in un cluster
-            self.reward_list.append(self.reward)
-            self.count_ticks_cluster = 0
 
-        return self.reward
+        # calcolo la reward
+        reward = ((self.count_turtle ^ 2) / self.cluster_threshold) * self.reward \
+                      + \
+                      (((ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode) * self.penalty)
+
+        self.reward_list.append(reward)
+        return reward
 
     def reset(self):
-        self.reward = 0
         self.reward_list = []
         self.observation = [False, False]
         self.count_ticks_cluster = 0
@@ -377,7 +410,7 @@ class Slime(gym.Env):
         for x in range(self.width + 1):
             for y in range(self.height + 1):
                 self.chemicals_level[str(x) + str(y)] = 0
-        return self.observation, self.reward, False, {}
+        return self.observation, 0, False, {}  # NB check if 0 makes sense
 
     def render(self):
         if self.first_gui:
@@ -413,7 +446,7 @@ for ep in range(1, episodes+1):
     env.reset()
     print(f"EPISODE: {ep}")
     for tick in range(ticks_per_episode):
-        observation, reward, done, info = env.moving_turtle(env.action_space.sample())
+        observation, reward, done, info = env.step(env.action_space.sample())
         # if tick % 2 == 0:
         print(observation, reward)
         env.render()
