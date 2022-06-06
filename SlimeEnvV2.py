@@ -36,7 +36,7 @@ class Slime(gym.Env):
         self.reward = 100  # TODO rendere parametrico
         self.penalty = -1  # TODO rendere parametrico
         self.reward_list = []
-        self.step = step  # di quanto si muovono le turtle ogni tick
+        self.move_step = step  # di quanto si muovono le turtle ogni tick
         self.population = population
         self.count_ticks_cluster = 0  # conta i tick che la turtle passa in un cluster
         self.cluster_threshold = cluster_threshold  # TODO rendere parametrico il range, che in netlogo è il 'cluster-radius' -- numero min di turtle affinché si consideri cluster (in range 20 atm)
@@ -64,7 +64,7 @@ class Slime(gym.Env):
         self.observation = [False, False]  # FIXME di fatto non usi lo spazio in questo modo
 
     # step function
-    def do_step(self, action):  # NB check whether type-hint "int" is a problem for Gym Env sub-classing
+    def step(self, action: int):  # NB check whether type-hint "int" is a problem for Gym Env sub-classing
         # MOVING NON LEARNER SLIME
         for turtle in self.cord_non_learner_turtle:
             self.max_lv = 0
@@ -105,17 +105,17 @@ class Slime(gym.Env):
         if action == 0:  # RANDOM WALK
             a = np.random.randint(4)  # faccio si che si possa muovere solo in diagonale
             if a == 0:
-                self.cord_learner_turtle[0] += self.step
-                self.cord_learner_turtle[1] += self.step
+                self.cord_learner_turtle[0] += self.move_step
+                self.cord_learner_turtle[1] += self.move_step
             elif a == 1:
-                self.cord_learner_turtle[0] -= self.step
-                self.cord_learner_turtle[1] += self.step
+                self.cord_learner_turtle[0] -= self.move_step
+                self.cord_learner_turtle[1] += self.move_step
             elif a == 2:
-                self.cord_learner_turtle[0] += self.step
-                self.cord_learner_turtle[1] -= self.step
+                self.cord_learner_turtle[0] += self.move_step
+                self.cord_learner_turtle[1] -= self.move_step
             else:
-                self.cord_learner_turtle[0] -= self.step
-                self.cord_learner_turtle[1] -= self.step
+                self.cord_learner_turtle[0] -= self.move_step
+                self.cord_learner_turtle[1] -= self.move_step
 
             # FIXME codice quasi esattamente duplicato da keep_in_screen()
             # Per evitare che lo Slime learner esca dallo schermo
@@ -142,25 +142,25 @@ class Slime(gym.Env):
             if self.max > self.sniff_threshold:
                 # FIXME codice quasi esattamente duplicato da follow_pheromone()
                 if self.cord_max[0] > self.cord_learner_turtle[0] and self.cord_max[1] > self.cord_learner_turtle[1]:
-                    self.cord_learner_turtle[0] += self.step
-                    self.cord_learner_turtle[1] += self.step
+                    self.cord_learner_turtle[0] += self.move_step
+                    self.cord_learner_turtle[1] += self.move_step
                 elif self.cord_max[0] < self.cord_learner_turtle[0] and self.cord_max[1] < self.cord_learner_turtle[1]:
-                    self.cord_learner_turtle[0] -= self.step
-                    self.cord_learner_turtle[1] -= self.step
+                    self.cord_learner_turtle[0] -= self.move_step
+                    self.cord_learner_turtle[1] -= self.move_step
                 elif self.cord_max[0] > self.cord_learner_turtle[0] and self.cord_max[1] < self.cord_learner_turtle[1]:
-                    self.cord_learner_turtle[0] += self.step
-                    self.cord_learner_turtle[1] -= self.step
+                    self.cord_learner_turtle[0] += self.move_step
+                    self.cord_learner_turtle[1] -= self.move_step
                 elif self.cord_max[0] < self.cord_learner_turtle[0] and self.cord_max[1] > self.cord_learner_turtle[1]:
-                    self.cord_learner_turtle[0] -= self.step
-                    self.cord_learner_turtle[1] += self.step
+                    self.cord_learner_turtle[0] -= self.move_step
+                    self.cord_learner_turtle[1] += self.move_step
                 elif self.cord_max[0] < self.cord_learner_turtle[0] and self.cord_max[1] == self.cord_learner_turtle[1]:
-                    self.cord_learner_turtle[0] -= self.step
+                    self.cord_learner_turtle[0] -= self.move_step
                 elif self.cord_max[0] > self.cord_learner_turtle[0] and self.cord_max[1] == self.cord_learner_turtle[1]:
-                    self.cord_learner_turtle[0] += self.step
+                    self.cord_learner_turtle[0] += self.move_step
                 elif self.cord_max[0] == self.cord_learner_turtle[0] and self.cord_max[1] < self.cord_learner_turtle[1]:
-                    self.cord_learner_turtle[1] -= self.step
+                    self.cord_learner_turtle[1] -= self.move_step
                 elif self.cord_max[0] == self.cord_learner_turtle[0] and self.cord_max[1] > self.cord_learner_turtle[1]:
-                    self.cord_learner_turtle[1] += self.step
+                    self.cord_learner_turtle[1] += self.move_step
                 else:
                     pass
             else:
@@ -217,17 +217,17 @@ class Slime(gym.Env):
         """
         act = np.random.randint(4)
         if act == 0:
-            self.cord_non_learner_turtle[turtle][0] += self.step
-            self.cord_non_learner_turtle[turtle][1] += self.step
+            self.cord_non_learner_turtle[turtle][0] += self.move_step
+            self.cord_non_learner_turtle[turtle][1] += self.move_step
         elif act == 1:
-            self.cord_non_learner_turtle[turtle][0] -= self.step
-            self.cord_non_learner_turtle[turtle][1] -= self.step
+            self.cord_non_learner_turtle[turtle][0] -= self.move_step
+            self.cord_non_learner_turtle[turtle][1] -= self.move_step
         elif act == 2:
-            self.cord_non_learner_turtle[turtle][0] -= self.step
-            self.cord_non_learner_turtle[turtle][1] += self.step
+            self.cord_non_learner_turtle[turtle][0] -= self.move_step
+            self.cord_non_learner_turtle[turtle][1] += self.move_step
         else:
-            self.cord_non_learner_turtle[turtle][0] += self.step
-            self.cord_non_learner_turtle[turtle][1] -= self.step
+            self.cord_non_learner_turtle[turtle][0] += self.move_step
+            self.cord_non_learner_turtle[turtle][1] -= self.move_step
 
     def follow_pheromone(self, turtle):
         """
@@ -238,39 +238,39 @@ class Slime(gym.Env):
         if self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > \
                 self.cord_non_learner_turtle[turtle][1]:
             # allora il punto si trova in alto a dx
-            self.cord_non_learner_turtle[turtle][0] += self.step
-            self.cord_non_learner_turtle[turtle][1] += self.step
+            self.cord_non_learner_turtle[turtle][0] += self.move_step
+            self.cord_non_learner_turtle[turtle][1] += self.move_step
         elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < \
                 self.cord_non_learner_turtle[turtle][1]:
             # allora il punto si trova in basso a sx
-            self.cord_non_learner_turtle[turtle][0] -= self.step
-            self.cord_non_learner_turtle[turtle][1] -= self.step
+            self.cord_non_learner_turtle[turtle][0] -= self.move_step
+            self.cord_non_learner_turtle[turtle][1] -= self.move_step
         elif self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < \
                 self.cord_non_learner_turtle[turtle][1]:
             # allora il punto si trova in basso a dx
-            self.cord_non_learner_turtle[turtle][0] += self.step
-            self.cord_non_learner_turtle[turtle][1] -= self.step
+            self.cord_non_learner_turtle[turtle][0] += self.move_step
+            self.cord_non_learner_turtle[turtle][1] -= self.move_step
         elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > \
                 self.cord_non_learner_turtle[turtle][1]:
             # allora il punto si trova in alto a sx
-            self.cord_non_learner_turtle[turtle][0] -= self.step
-            self.cord_non_learner_turtle[turtle][1] += self.step
+            self.cord_non_learner_turtle[turtle][0] -= self.move_step
+            self.cord_non_learner_turtle[turtle][1] += self.move_step
         elif self.cord_max_lv[0] == self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < \
                 self.cord_non_learner_turtle[turtle][1]:
             # allora il punto si trova in basso sulla mia colonna
-            self.cord_non_learner_turtle[turtle][1] -= self.step
+            self.cord_non_learner_turtle[turtle][1] -= self.move_step
         elif self.cord_max_lv[0] == self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > \
                 self.cord_non_learner_turtle[turtle][1]:
             # allora il punto si trova in alto sulla mia colonna
-            self.cord_non_learner_turtle[turtle][1] += self.step
+            self.cord_non_learner_turtle[turtle][1] += self.move_step
         elif self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] == \
                 self.cord_non_learner_turtle[turtle][1]:
             # allora il punto si trova alla mia dx
-            self.cord_non_learner_turtle[turtle][0] += self.step
+            self.cord_non_learner_turtle[turtle][0] += self.move_step
         elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] == \
                 self.cord_non_learner_turtle[turtle][1]:
             # allora il punto si trova alla mia sx
-            self.cord_non_learner_turtle[turtle][0] -= self.step
+            self.cord_non_learner_turtle[turtle][0] -= self.move_step
         else:
             pass  # allora il punto è dove mi trovo quindi stò fermo
 
@@ -444,7 +444,7 @@ for ep in range(1, episodes+1):
     env.reset()
     print(f"EPISODE: {ep}")
     for tick in range(ticks_per_episode):
-        observation, reward, done, info = env.do_step(env.action_space.sample())
+        observation, reward, done, info = env.step(env.action_space.sample())
         # if tick % 2 == 0:
         print(observation, reward)
         env.render()
