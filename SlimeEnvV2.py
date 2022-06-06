@@ -14,8 +14,8 @@ class Boolean(gym.Space):
         gym.Space.__init__(self, (), bool)
 
     def sample(self):
-        bool = [random.choice([True, False]) for i in range(self.size)]
-        return bool
+        b = [random.choice([True, False]) for _ in range(self.size)]
+        return b
 
 
 class Slime(gym.Env):
@@ -25,7 +25,7 @@ class Slime(gym.Env):
     # cluster_limit = cluster_threshold
     def __init__(self,
                  render_mode: Optional[str] = None,
-                 sniff_threshold=12,  # controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)—unclear effect on learning, could be negligible
+                 sniff_threshold=12,        # controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)—unclear effect on learning, could be negligible
                  step=5,                    # QUESTION di quanti pixels si muovono le turtles?
                  cluster_threshold=5,       # controls the minimum number of slimes needed to consider an aggregate within cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more difficult to obtain a positive reward for being within a cluster for learning slimes
                  population=650,            # controls the number of non-learning slimes (= green turtles)
@@ -45,12 +45,12 @@ class Slime(gym.Env):
         self.height = grid_size
 
         # create learner turtle
-        self.cord_learner_turtle = [np.random.randint(10, self.width - 10) for i in range(2)]
+        self.cord_learner_turtle = [np.random.randint(10, self.width - 10) for _ in range(2)]
 
         # create NON learner turtle
         self.cord_non_learner_turtle = {}
         for p in range(self.population):
-            self.l = [np.random.randint(10, self.width-10) for i in range(2)]
+            self.l = [np.random.randint(10, self.width-10) for _ in range(2)]
             self.cord_non_learner_turtle[str(p)] = self.l
 
         # patches-own [chemical] - amount of pheromone in each patch
@@ -64,7 +64,7 @@ class Slime(gym.Env):
         self.observation = [False, False]  # FIXME di fatto non usi lo spazio in questo modo
 
     # step function
-    def step(self, action):  # NB check whether type-hint "int" is a problem for Gym Env sub-classing
+    def do_step(self, action):  # NB check whether type-hint "int" is a problem for Gym Env sub-classing
         # MOVING NON LEARNER SLIME
         for turtle in self.cord_non_learner_turtle:
             self.max_lv = 0
@@ -317,8 +317,7 @@ class Slime(gym.Env):
     def _count_cluster(self):
         self.count_turtle = 1
         self.check_cord = []
-        for x in range(self.cord_learner_turtle[0] - 9, self.cord_learner_turtle[
-                                                            0] + 10):  #  TODO rendere parametrico come 'cluster-threshlod' in netlogo
+        for x in range(self.cord_learner_turtle[0] - 9, self.cord_learner_turtle[0] + 10):  #  TODO rendere parametrico come 'cluster-threshlod' in netlogo
             for y in range(self.cord_learner_turtle[1] - 9, self.cord_learner_turtle[1] + 10):
                 self.check_cord.append([x, y])
         for pair in self.cord_non_learner_turtle.values():
@@ -374,15 +373,14 @@ class Slime(gym.Env):
         reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside clusters
         :return:
         """
-        cur_reward = 0
-        _count_cluster(self)
+        self._count_cluster()
         if self.count_turtle >= self.cluster_threshold:
             self.count_ticks_cluster += 1
 
         # calcolo la reward
         cur_reward = ((self.count_turtle ^ 2) / self.cluster_threshold) * self.reward \
-                      + \
-                      (((ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode) * self.penalty)
+                     + \
+                     (((ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode) * self.penalty)
 
         self.reward_list.append(cur_reward)
         return cur_reward
@@ -412,7 +410,7 @@ class Slime(gym.Env):
                 self.chemicals_level[str(x) + str(y)] = 0
         return self.observation, 0, False, {}  # NB check if 0 makes sense
 
-    def render(self):
+    def render(self, **kwargs):
         if self.first_gui:
             self.first_gui = False
             pygame.init()
@@ -437,8 +435,8 @@ class Slime(gym.Env):
 
 
 #   MAIN
-episodes = 5
-ticks_per_episode = 10
+episodes = 100
+ticks_per_episode = 500
 # consigliabile almeno 500 tick_per_episode, altrimenti difficile vedere fenomeni di aggregazione
 
 env = Slime(sniff_threshold=12, step=5, cluster_threshold=5, population=100, grid_size=500)
@@ -446,7 +444,7 @@ for ep in range(1, episodes+1):
     env.reset()
     print(f"EPISODE: {ep}")
     for tick in range(ticks_per_episode):
-        observation, reward, done, info = env.step(env.action_space.sample())
+        observation, reward, done, info = env.do_step(env.action_space.sample())
         # if tick % 2 == 0:
         print(observation, reward)
         env.render()
