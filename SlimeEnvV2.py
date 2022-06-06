@@ -4,9 +4,6 @@ from gym import spaces
 import numpy as np
 
 
-width = height = 500  # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
-
-
 # creo un custom space
 class Boolean(gym.Space):
     def __init__(self, size=None):
@@ -24,7 +21,7 @@ class Slime(gym.Env):
     metadata = {"render_modes": "human", "render_fps": 30}
 
     # cluster_limit = cluster_threshold
-    def __init__(self, sniff_threshold=12, step=5, cluster_limit=5, population=650):
+    def __init__(self, sniff_threshold=12, step=5, cluster_limit=5, population=650, grid_size=500):  # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
         self.sniff_threshold = sniff_threshold
         self.reward = 0
         self.reward_list = []
@@ -33,20 +30,22 @@ class Slime(gym.Env):
         self.count_ticks_cluster = 0  # conta i tick che la turtle passa in un cluster
         self.cluster_limit = cluster_limit  # numero min di turtle affinché si consideri cluster (in range 20)
         self.first_gui = True
+        self.width = grid_size
+        self.height = grid_size
 
         # create learner turtle
-        self.cord_learner_turtle = [np.random.randint(10, width - 10) for i in range(2)]
+        self.cord_learner_turtle = [np.random.randint(10, self.width - 10) for i in range(2)]
 
         # create NON learner turtle
         self.cord_non_learner_turtle = {}
         for p in range(self.population):
-            self.l = [np.random.randint(10, width-10) for i in range(2)]
+            self.l = [np.random.randint(10, self.width-10) for i in range(2)]
             self.cord_non_learner_turtle[str(p)] = self.l
 
         # patches-own [chemical] - amount of pheromone in each patch
         self.chemicals_level = {}
-        for x in range(width + 1):
-            for y in range(height + 1):
+        for x in range(self.width + 1):
+            for y in range(self.height + 1):
                 self.chemicals_level[str(x) + str(y)] = 0
 
         self.action_space = spaces.Discrete(3)
@@ -67,8 +66,8 @@ class Slime(gym.Env):
             for i in range(len(self.bonds)):
                 if self.bonds[i] < 0:
                     self.bonds[i] = 0
-                elif self.bonds[i] > width:
-                    self.bonds[i] = width
+                elif self.bonds[i] > self.width:
+                    self.bonds[i] = self.width
             for x in range(self.bonds[0], self.bonds[2]):
                 for y in range(self.bonds[1], self.bonds[3]):  # SCORRO LE "PATCH" NELLE VICINANE CON UN r = 3
                     if self.chemicals_level[str(x) + str(y)] > self.max_lv:  # CERCO IL MAX VALORE DI FEROMONE NELLE VICINANZE E PRENDO LE SUE COORDINATE
@@ -130,12 +129,12 @@ class Slime(gym.Env):
                     self.chemicals_level[str(x) + str(y)] += 2
 
             # PER EVITARE ESCANO DALLO SCHERMO
-            if self.cord_non_learner_turtle[turtle][0] > width - 10:
-                self.cord_non_learner_turtle[turtle][0] = width - 15
+            if self.cord_non_learner_turtle[turtle][0] > self.width - 10:
+                self.cord_non_learner_turtle[turtle][0] = self.width - 15
             elif self.cord_non_learner_turtle[turtle][0] < 10:
                 self.cord_non_learner_turtle[turtle][0] = 15
-            if self.cord_non_learner_turtle[turtle][1] > height - 10:
-                self.cord_non_learner_turtle[turtle][1] = height - 15
+            if self.cord_non_learner_turtle[turtle][1] > self.height - 10:
+                self.cord_non_learner_turtle[turtle][1] = self.height - 15
             elif self.cord_non_learner_turtle[turtle][1] < 10:
                 self.cord_non_learner_turtle[turtle][1] = 15
 
@@ -150,8 +149,8 @@ class Slime(gym.Env):
         for i in range(len(self.limit)):
             if self.limit[i] < 0:
                 self.limit[i] = 0
-            elif self.limit[i] > width:
-                self.limit[i] = width
+            elif self.limit[i] > self.width:
+                self.limit[i] = self.width
         if action == 0:  # RANDOM WALK
             a = np.random.randint(4)  # faccio si che si possa muovere solo in diagonale
             if a == 0:
@@ -168,12 +167,12 @@ class Slime(gym.Env):
                 self.cord_learner_turtle[1] -= self.step
 
             # Per evitare che lo Slime learner esca dallo schermo
-            if self.cord_learner_turtle[0] > width - 10:
-                self.cord_learner_turtle[0] = width - 15
+            if self.cord_learner_turtle[0] > self.width - 10:
+                self.cord_learner_turtle[0] = self.width - 15
             elif self.cord_learner_turtle[0] < 10:
                 self.cord_learner_turtle[0] = 15
-            if self.cord_learner_turtle[1] > height - 10:
-                self.cord_learner_turtle[1] = height - 15
+            if self.cord_learner_turtle[1] > self.height - 10:
+                self.cord_learner_turtle[1] = self.height - 15
             elif self.cord_learner_turtle[1] < 10:
                 self.cord_learner_turtle[1] = 15
         elif action == 1:  # DROP CHEMICALS
@@ -314,21 +313,21 @@ class Slime(gym.Env):
 
         # create learner turtle
         self.cord_learner_turtle = []
-        self.cord_learner_turtle.append(np.random.randint(10, width - 10))
-        self.cord_learner_turtle.append(np.random.randint(10, height - 10))
+        self.cord_learner_turtle.append(np.random.randint(10, self.width - 10))
+        self.cord_learner_turtle.append(np.random.randint(10, self.height - 10))
 
         # create NON learner turtle
         self.cord_non_learner_turtle = {}
         for p in range(self.population):
             self.l = []
-            self.l.append(np.random.randint(10, width - 10))
-            self.l.append(np.random.randint(10, height - 10))
+            self.l.append(np.random.randint(10, self.width - 10))
+            self.l.append(np.random.randint(10, self.height - 10))
             self.cord_non_learner_turtle[str(p)] = self.l
 
         # patches-own [chemical] - amount of pheromone in the patch
         self.chemicals_level = {}
-        for x in range(width + 1):
-            for y in range(height + 1):
+        for x in range(self.width + 1):
+            for y in range(self.height + 1):
                 self.chemicals_level[str(x) + str(y)] = 0
         return self.observation, self.reward, False, {}
 
@@ -336,7 +335,7 @@ class Slime(gym.Env):
         if self.first_gui:
             self.first_gui = False
             pygame.init()
-            self.screen = pygame.display.set_mode((width, height))
+            self.screen = pygame.display.set_mode((self.width, self.height))
             pygame.display.set_caption("SLIME")
             self.clock = pygame.time.Clock()
         self.screen.fill((0, 0, 0))
