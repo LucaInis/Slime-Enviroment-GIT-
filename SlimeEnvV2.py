@@ -21,14 +21,18 @@ class Slime(gym.Env):
     metadata = {"render_modes": "human", "render_fps": 30}
 
     # cluster_limit = cluster_threshold
-    def __init__(self, sniff_threshold=12, step=5, cluster_limit=5, population=650, grid_size=500):  # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
+    def __init__(self, sniff_threshold=12,  # controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)—unclear effect on learning, could be negligible
+                 step=5,                    # QUESTION ???
+                 cluster_threshold=5,       # controls the minimum number of slimes needed to consider an aggregate within cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more difficult to obtain a positive reward for being within a cluster for learning slimes
+                 population=650,            # controls the number of non-learning slimes (= green turtles)
+                 grid_size=500):            # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
         self.sniff_threshold = sniff_threshold
         self.reward = 0
         self.reward_list = []
         self.step = step  # di quanto si muovono le turtle ogni tick
         self.population = population
         self.count_ticks_cluster = 0  # conta i tick che la turtle passa in un cluster
-        self.cluster_limit = cluster_limit  # numero min di turtle affinché si consideri cluster (in range 20)
+        self.cluster_threshold = cluster_threshold  # numero min di turtle affinché si consideri cluster (in range 20)
         self.first_gui = True
         self.width = grid_size
         self.height = grid_size
@@ -50,7 +54,7 @@ class Slime(gym.Env):
 
         self.action_space = spaces.Discrete(3)
         self.observation_space = Boolean(size=2)
-        self.observation = [False, False]
+        self.observation = [False, False]  # FIXME di fatto non usi lo spazio in questo modo
 
     # step function
     def moving_turtle(self, action: int):
@@ -59,54 +63,13 @@ class Slime(gym.Env):
             self.max_lv = 0
             self.cord_max_lv = []
             self.bonds = []
-            self.bonds.append(self.cord_non_learner_turtle[turtle][0] - 3)
-            self.bonds.append(self.cord_non_learner_turtle[turtle][1] - 3)
-            self.bonds.append(self.cord_non_learner_turtle[turtle][0] + 4)
-            self.bonds.append(self.cord_non_learner_turtle[turtle][1] + 4)
-            for i in range(len(self.bonds)):
-                if self.bonds[i] < 0:
-                    self.bonds[i] = 0
-                elif self.bonds[i] > self.width:
-                    self.bonds[i] = self.width
-            for x in range(self.bonds[0], self.bonds[2]):
-                for y in range(self.bonds[1], self.bonds[3]):  # SCORRO LE "PATCH" NELLE VICINANE CON UN r = 3
-                    if self.chemicals_level[str(x) + str(y)] > self.max_lv:  # CERCO IL MAX VALORE DI FEROMONE NELLE VICINANZE E PRENDO LE SUE COORDINATE
-                        self.max_lv = self.chemicals_level[str(x) + str(y)]
-                        self.cord_max_lv.clear()
-                        self.cord_max_lv = []
-                        self.cord_max_lv.append(x)
-                        self.cord_max_lv.append(y)
+
+            self.find_max_lv(turtle)  # DOC find patch where chemical is max
+
             if self.max_lv > self.sniff_threshold:
-                if self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > self.cord_non_learner_turtle[turtle][1]:
-                    # allora il punto si trova in alto a dx
-                    self.cord_non_learner_turtle[turtle][0] += self.step
-                    self.cord_non_learner_turtle[turtle][1] += self.step
-                elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < self.cord_non_learner_turtle[turtle][1]:
-                    # allora il punto si trova in basso a sx
-                    self.cord_non_learner_turtle[turtle][0] -= self.step
-                    self.cord_non_learner_turtle[turtle][1] -= self.step
-                elif self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < self.cord_non_learner_turtle[turtle][1]:
-                    # allora il punto si trova in basso a dx
-                    self.cord_non_learner_turtle[turtle][0] += self.step
-                    self.cord_non_learner_turtle[turtle][1] -= self.step
-                elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > self.cord_non_learner_turtle[turtle][1]:
-                    # allora il punto si trova in alto a sx
-                    self.cord_non_learner_turtle[turtle][0] -= self.step
-                    self.cord_non_learner_turtle[turtle][1] += self.step
-                elif self.cord_max_lv[0] == self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < self.cord_non_learner_turtle[turtle][1]:
-                    # allora il punto si trova in basso sulla mia colonna
-                    self.cord_non_learner_turtle[turtle][1] -= self.step
-                elif self.cord_max_lv[0] == self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > self.cord_non_learner_turtle[turtle][1]:
-                    # allora il punto si trova in alto sulla mia colonna
-                    self.cord_non_learner_turtle[turtle][1] += self.step
-                elif self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] == self.cord_non_learner_turtle[turtle][1]:
-                    # allora il punto si trova alla mia dx
-                    self.cord_non_learner_turtle[turtle][0] += self.step
-                elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] == self.cord_non_learner_turtle[turtle][1]:
-                    # allora il punto si trova alla mia sx
-                    self.cord_non_learner_turtle[turtle][0] -= self.step
-                else:
-                    pass  # allora il punto è dove mi trovo quindi stò fermo
+
+                self.follow_pheromone(turtle)  # DOC move towards greatest pheromone
+
             else:
                 # RANDOM WALK
                 act = np.random.randint(4)
@@ -223,6 +186,77 @@ class Slime(gym.Env):
 
         return self.observation, self.reward, False, {}
 
+    def follow_pheromone(self, turtle):
+        """
+        Move turtle towards greatest pheromone found by find_max_lv()
+        :param turtle: the turtle to move
+        :return: the new turtle x,y
+        """
+        if self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > \
+                self.cord_non_learner_turtle[turtle][1]:
+            # allora il punto si trova in alto a dx
+            self.cord_non_learner_turtle[turtle][0] += self.step
+            self.cord_non_learner_turtle[turtle][1] += self.step
+        elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < \
+                self.cord_non_learner_turtle[turtle][1]:
+            # allora il punto si trova in basso a sx
+            self.cord_non_learner_turtle[turtle][0] -= self.step
+            self.cord_non_learner_turtle[turtle][1] -= self.step
+        elif self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < \
+                self.cord_non_learner_turtle[turtle][1]:
+            # allora il punto si trova in basso a dx
+            self.cord_non_learner_turtle[turtle][0] += self.step
+            self.cord_non_learner_turtle[turtle][1] -= self.step
+        elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > \
+                self.cord_non_learner_turtle[turtle][1]:
+            # allora il punto si trova in alto a sx
+            self.cord_non_learner_turtle[turtle][0] -= self.step
+            self.cord_non_learner_turtle[turtle][1] += self.step
+        elif self.cord_max_lv[0] == self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] < \
+                self.cord_non_learner_turtle[turtle][1]:
+            # allora il punto si trova in basso sulla mia colonna
+            self.cord_non_learner_turtle[turtle][1] -= self.step
+        elif self.cord_max_lv[0] == self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] > \
+                self.cord_non_learner_turtle[turtle][1]:
+            # allora il punto si trova in alto sulla mia colonna
+            self.cord_non_learner_turtle[turtle][1] += self.step
+        elif self.cord_max_lv[0] > self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] == \
+                self.cord_non_learner_turtle[turtle][1]:
+            # allora il punto si trova alla mia dx
+            self.cord_non_learner_turtle[turtle][0] += self.step
+        elif self.cord_max_lv[0] < self.cord_non_learner_turtle[turtle][0] and self.cord_max_lv[1] == \
+                self.cord_non_learner_turtle[turtle][1]:
+            # allora il punto si trova alla mia sx
+            self.cord_non_learner_turtle[turtle][0] -= self.step
+        else:
+            pass  # allora il punto è dove mi trovo quindi stò fermo
+
+    def find_max_lv(self, turtle):
+        """
+        find patch where chemical pheromone level is max within radius
+        :param turtle: the sniffing turtle
+        :return: x,y of patch with max chemical within radius
+        """
+        # QUESTION ??? raggio del vicinato delle patch?
+        self.bonds.append(self.cord_non_learner_turtle[turtle][0] - 3)
+        self.bonds.append(self.cord_non_learner_turtle[turtle][1] - 3)
+        self.bonds.append(self.cord_non_learner_turtle[turtle][0] + 4)
+        self.bonds.append(self.cord_non_learner_turtle[turtle][1] + 4)
+        for i in range(len(self.bonds)):
+            if self.bonds[i] < 0:
+                self.bonds[i] = 0
+            elif self.bonds[i] > self.width:
+                self.bonds[i] = self.width
+        for x in range(self.bonds[0], self.bonds[2]):
+            for y in range(self.bonds[1], self.bonds[3]):  # SCORRO LE "PATCH" NELLE VICINANE CON UN r = 3
+                if self.chemicals_level[str(x) + str(
+                        y)] > self.max_lv:  # CERCO IL MAX VALORE DI FEROMONE NELLE VICINANZE E PRENDO LE SUE COORDINATE
+                    self.max_lv = self.chemicals_level[str(x) + str(y)]
+                    # self.cord_max_lv.clear()
+                    self.cord_max_lv = []
+                    self.cord_max_lv.append(x)
+                    self.cord_max_lv.append(y)
+
     def get_obs(self):
         # controllo la presenza di feromone o meno nella patch, da spostare
         if self.chemicals_level[str(self.cord_learner_turtle[0]) + str(self.cord_learner_turtle[1])] != 0:
@@ -238,7 +272,7 @@ class Slime(gym.Env):
         for pair in self.cord_non_learner_turtle.values():
             if pair in self.check_cord:
                 self.count_turtle += 1
-        if self.count_turtle >= self.cluster_limit:
+        if self.count_turtle >= self.cluster_threshold:
             self.observation[0] = True
         else:
             self.observation[0] = False
@@ -253,7 +287,7 @@ class Slime(gym.Env):
         for pair in self.cord_non_learner_turtle.values():
             if pair in self.check_cord:
                 self.count_turtle += 1
-        if self.count_turtle >= self.cluster_limit:
+        if self.count_turtle >= self.cluster_threshold:
             self.count_ticks_cluster += 1
             self.reward = 2
             self.reward_list.append(2)   # se la mia turtle è in un cluster gli assegno una reward
@@ -273,7 +307,7 @@ class Slime(gym.Env):
         for pair in self.cord_non_learner_turtle.values():
             if pair in self.check_cord:
                 self.count_turtle += 1
-        if self.count_turtle >= self.cluster_limit:
+        if self.count_turtle >= self.cluster_threshold:
             self.count_ticks_cluster += 1
         else:
             self.count_ticks_cluster = 0
@@ -292,10 +326,10 @@ class Slime(gym.Env):
         for pair in self.cord_non_learner_turtle.values():
             if pair in self.check_cord:
                 self.count_turtle += 1
-        if self.count_turtle >= self.cluster_limit:
+        if self.count_turtle >= self.cluster_threshold:
             self.count_ticks_cluster += 1
             # calcolo la reward
-            self.reward = ((self.count_turtle ^ 2) / self.cluster_limit) + (
+            self.reward = ((self.count_turtle ^ 2) / self.cluster_threshold) + (
                         (ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode)
             self.reward_list.append(self.reward)
         else:
@@ -360,7 +394,7 @@ episodes = 5
 ticks_per_episode = 700
 # consigliabile almeno 500 tick_per_episode, altrimenti difficile vedere fenomeni di aggregazione
 
-env = Slime()
+env = Slime(sniff_threshold=12, step=5, cluster_threshold=5, population=100, grid_size=500)
 for ep in range(1, episodes+1):
     env.reset()
     print(f"EPISODE: {ep}")
