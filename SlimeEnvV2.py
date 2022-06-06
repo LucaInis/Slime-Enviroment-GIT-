@@ -22,7 +22,7 @@ class Slime(gym.Env):
 
     # cluster_limit = cluster_threshold
     def __init__(self, sniff_threshold=12,  # controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)—unclear effect on learning, could be negligible
-                 step=5,                    # QUESTION ???
+                 step=5,                    # QUESTION di quanti pixels si muovono le turtles?
                  cluster_threshold=5,       # controls the minimum number of slimes needed to consider an aggregate within cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more difficult to obtain a positive reward for being within a cluster for learning slimes
                  population=650,            # controls the number of non-learning slimes (= green turtles)
                  grid_size=500):            # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
@@ -32,7 +32,7 @@ class Slime(gym.Env):
         self.step = step  # di quanto si muovono le turtle ogni tick
         self.population = population
         self.count_ticks_cluster = 0  # conta i tick che la turtle passa in un cluster
-        self.cluster_threshold = cluster_threshold  # numero min di turtle affinché si consideri cluster (in range 20)
+        self.cluster_threshold = cluster_threshold  # TODO rendere parametrico il range, che in netlogo è il 'cluster-radius' -- numero min di turtle affinché si consideri cluster (in range 20 atm)
         self.first_gui = True
         self.width = grid_size
         self.height = grid_size
@@ -72,35 +72,17 @@ class Slime(gym.Env):
 
             else:
                 # RANDOM WALK
-                act = np.random.randint(4)
-                if act == 0:
-                    self.cord_non_learner_turtle[turtle][0] += self.step
-                    self.cord_non_learner_turtle[turtle][1] += self.step
-                elif act == 1:
-                    self.cord_non_learner_turtle[turtle][0] -= self.step
-                    self.cord_non_learner_turtle[turtle][1] -= self.step
-                elif act == 2:
-                    self.cord_non_learner_turtle[turtle][0] -= self.step
-                    self.cord_non_learner_turtle[turtle][1] += self.step
-                else:
-                    self.cord_non_learner_turtle[turtle][0] += self.step
-                    self.cord_non_learner_turtle[turtle][1] -= self.step
+                self.rng_walk(turtle)
 
             # DROP CHEMICALS
             for x in range(self.bonds[0], self.bonds[2]):
                 for y in range(self.bonds[1], self.bonds[3]):
-                    self.chemicals_level[str(x) + str(y)] += 2
+                    self.chemicals_level[str(x) + str(y)] += 2  # TODO rendere parametrica la quantità di feromone, come 'chemical-drop' in netlogo
 
             # PER EVITARE ESCANO DALLO SCHERMO
-            if self.cord_non_learner_turtle[turtle][0] > self.width - 10:
-                self.cord_non_learner_turtle[turtle][0] = self.width - 15
-            elif self.cord_non_learner_turtle[turtle][0] < 10:
-                self.cord_non_learner_turtle[turtle][0] = 15
-            if self.cord_non_learner_turtle[turtle][1] > self.height - 10:
-                self.cord_non_learner_turtle[turtle][1] = self.height - 15
-            elif self.cord_non_learner_turtle[turtle][1] < 10:
-                self.cord_non_learner_turtle[turtle][1] = 15
+            self.keep_in_screen(turtle)
 
+        # FIXME codice quasi esattamente duplicato da find_max_lv()
         # MOVING LEARNER SLIME
         self.max = 0
         self.cord_max = []
@@ -114,6 +96,7 @@ class Slime(gym.Env):
                 self.limit[i] = 0
             elif self.limit[i] > self.width:
                 self.limit[i] = self.width
+        # FIXME codice quasi esattamente duplicato da rng_walk()
         if action == 0:  # RANDOM WALK
             a = np.random.randint(4)  # faccio si che si possa muovere solo in diagonale
             if a == 0:
@@ -129,6 +112,7 @@ class Slime(gym.Env):
                 self.cord_learner_turtle[0] -= self.step
                 self.cord_learner_turtle[1] -= self.step
 
+            # FIXME codice quasi esattamente duplicato da keep_in_screen()
             # Per evitare che lo Slime learner esca dallo schermo
             if self.cord_learner_turtle[0] > self.width - 10:
                 self.cord_learner_turtle[0] = self.width - 15
@@ -141,8 +125,9 @@ class Slime(gym.Env):
         elif action == 1:  # DROP CHEMICALS
             for x in range(self.limit[0], self.limit[2]):
                 for y in range(self.limit[1], self.limit[3]):
-                    self.chemicals_level[str(x) + str(y)] += 2
+                    self.chemicals_level[str(x) + str(y)] += 2  # QUESTION dunque viene depositata la stessa quantità di feromone nell'area tra i limiti fissati?
         elif action == 2:  # CHASE MAX CHEMICAL
+            # FIXME codice quasi esattamente duplicato da find_max_lv()
             for x in range(self.limit[0], self.limit[2]):
                 for y in range(self.limit[1], self.limit[3]):
                     if self.chemicals_level[str(x) + str(y)] > self.max:  # CERCO IL MAX VALORE DI FEROMONE NELLE VICINANZE E PRENDO LE SUE COORDINATE
@@ -150,6 +135,7 @@ class Slime(gym.Env):
                         self.cord_max.append(x)
                         self.cord_max.append(y)
             if self.max > self.sniff_threshold:
+                # FIXME codice quasi esattamente duplicato da follow_pheromone()
                 if self.cord_max[0] > self.cord_learner_turtle[0] and self.cord_max[1] > self.cord_learner_turtle[1]:
                     self.cord_learner_turtle[0] += self.step
                     self.cord_learner_turtle[1] += self.step
@@ -178,13 +164,41 @@ class Slime(gym.Env):
         self.reward = Slime.rewardfunc7(self)  # <--reward function in uso
 
         # EVAPORATE CHEMICAL
-        for patch in self.chemicals_level:
-            if self.chemicals_level[patch] != 0:
-                self.chemicals_level[patch] -= 2
+        self.evaporate()
 
         self.observation = Slime.get_obs(self)
 
         return self.observation, self.reward, False, {}
+
+    def evaporate(self):
+        for patch in self.chemicals_level:
+            if self.chemicals_level[patch] != 0:
+                self.chemicals_level[patch] -= 2  # TODO rendere parametrico come 'evaporation-rate' in netlogo
+
+    def keep_in_screen(self, turtle):
+        if self.cord_non_learner_turtle[turtle][0] > self.width - 10:
+            self.cord_non_learner_turtle[turtle][0] = self.width - 15
+        elif self.cord_non_learner_turtle[turtle][0] < 10:
+            self.cord_non_learner_turtle[turtle][0] = 15
+        if self.cord_non_learner_turtle[turtle][1] > self.height - 10:
+            self.cord_non_learner_turtle[turtle][1] = self.height - 15
+        elif self.cord_non_learner_turtle[turtle][1] < 10:
+            self.cord_non_learner_turtle[turtle][1] = 15
+
+    def rng_walk(self, turtle):
+        act = np.random.randint(4)
+        if act == 0:
+            self.cord_non_learner_turtle[turtle][0] += self.step
+            self.cord_non_learner_turtle[turtle][1] += self.step
+        elif act == 1:
+            self.cord_non_learner_turtle[turtle][0] -= self.step
+            self.cord_non_learner_turtle[turtle][1] -= self.step
+        elif act == 2:
+            self.cord_non_learner_turtle[turtle][0] -= self.step
+            self.cord_non_learner_turtle[turtle][1] += self.step
+        else:
+            self.cord_non_learner_turtle[turtle][0] += self.step
+            self.cord_non_learner_turtle[turtle][1] -= self.step
 
     def follow_pheromone(self, turtle):
         """
