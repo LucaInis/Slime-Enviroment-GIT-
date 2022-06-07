@@ -39,6 +39,8 @@ class Slime(gym.Env):
                  population=650,
                  sniff_threshold=12,
                  smell_area=4,
+                 lay_area=4,
+                 lay_amount=2,
                  cluster_threshold=5,
                  cluster_radius=20,
                  rew=100,
@@ -52,6 +54,8 @@ class Slime(gym.Env):
         :param sniff_threshold:     Controls how sensitive slimes are to pheromone (higher values make slimes less
                                     sensitive to pheromone)—unclear effect on learning, could be negligible
         :param smell_area:          Controls the square area sorrounding the turtle whithin which it smells pheromone
+        :param lay_area:            Controls the square area sorrounding the turtle where pheromone is laid
+        :param lay_amount:          Controls how much pheromone is laid
         :param cluster_threshold:   Controls the minimum number of slimes needed to consider an aggregate within
                                     cluster-radius a cluster (the higher the more difficult to consider an aggregate a
                                     cluster)—the higher the more difficult to obtain a positive reward for being within
@@ -71,6 +75,8 @@ class Slime(gym.Env):
         self.population = population
         self.sniff_threshold = sniff_threshold
         self.smell_area = smell_area
+        self.lay_area = lay_area
+        self.lay_amount = lay_amount
         self.cluster_threshold = cluster_threshold
         self.cluster_radius = cluster_radius
         self.reward = rew
@@ -98,7 +104,7 @@ class Slime(gym.Env):
             for y in range(self.height + 1):
                 self.chemical_pos[str(x) + str(y)] = 0
 
-        self.action_space = spaces.Discrete(3)          # DOC 0 = random walk, 1 = drop pheromone, 2 = follow pheromone TODO as dict
+        self.action_space = spaces.Discrete(3)          # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)   # DOC [0] = whether the turtle is in a cluster
                                                         # DOC [1] = whether there is chemical in turtle patch
         self.observation = [False, False]   # FIXME di fatto non usi lo spazio in questo modo
@@ -106,26 +112,29 @@ class Slime(gym.Env):
     def step(self, action: int):
         """
 
-        :param action: 0 = random walk, 1 = drop pheromone, 2 = follow pheromone
+        :param action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
         :return:
         """
+        # DOC non learners act
         for turtle in self.non_learner_pos:
-            self.max_lv = 0
-            self.cord_max_lv = []
-            self.bonds = []
+            self.max_lv = 0  # TODO remove
+            self.cord_max_lv = []  # TODO remove
+            self.bonds = []  # TODO remove
 
-            self._find_max_lv(turtle)
+            self._find_max_lv(turtle)  # TODO remove
             max_pheromone, max_coords = self._find_max_pheromone(self.non_learner_pos[turtle], self.smell_area)
 
             if max_pheromone > self.sniff_threshold:
                 self.follow_pheromone(turtle)
             else:
-                self.rng_walk(turtle)
+                self.rng_walk(turtle)  # TODO remove
                 self.walk(self.non_learner_pos[turtle])
 
-            self.drop_chemical()
+            self.drop_chemical()  # TODO remove
+            self.lay_pheromone(self.non_learner_pos[turtle], self.lay_area, self.lay_amount)
             self._keep_in_screen(turtle)
 
+        # DOC learners act
         if action == 0:  # DOC random walk
             self.walk(self.learner_pos)
 
@@ -140,9 +149,7 @@ class Slime(gym.Env):
             elif self.learner_pos[1] < 10:
                 self.learner_pos[1] = 15
         elif action == 1:  # DROP CHEMICALS
-            for x in range(self.limit[0], self.limit[2]):
-                for y in range(self.limit[1], self.limit[3]):
-                    self.chemical_pos[str(x) + str(y)] += 2  # QUESTION dunque viene depositata la stessa quantità di feromone nell'area tra i limiti fissati?
+            self.lay_pheromone(self.learner_pos, self.lay_area, self.lay_amount)
         elif action == 2:  # CHASE MAX CHEMICAL
             max_pheromone, max_coords = self._find_max_pheromone(self.learner_pos, self.smell_area)
             if max_pheromone > self.sniff_threshold:
@@ -180,6 +187,20 @@ class Slime(gym.Env):
         self.observation = Slime._get_obs(self)
 
         return self.observation, cur_reward, False, {}
+
+    def lay_pheromone(self, pos, area, amount):
+        bounds = [pos[0] - area // 2,  # DOC min x
+                  pos[1] - area // 2,  # DOC min y
+                  pos[0] + area // 2,  # DOC max x
+                  pos[1] + area // 2]  # DOC max y
+        for i in range(len(bounds)):
+            if bounds[i] < 0:
+                bounds[i] = 0
+            elif bounds[i] > self.width:
+                bounds[i] = self.width
+        for x in range(self.bonds[0], self.bonds[2]):
+            for y in range(self.bonds[1], self.bonds[3]):
+                self.chemical_pos[str(x) + str(y)] += amount
 
     def drop_chemical(self):
         """
