@@ -144,27 +144,8 @@ class Slime(gym.Env):
                 for y in range(self.limit[1], self.limit[3]):
                     self.chemical_pos[str(x) + str(y)] += 2  # QUESTION dunque viene depositata la stessa quantità di feromone nell'area tra i limiti fissati?
         elif action == 2:  # CHASE MAX CHEMICAL
-            # FIXME codice quasi esattamente duplicato da find_max_lv()
-            # MOVING LEARNER SLIME
-            self.max = 0
-            self.cord_max = []
-            self.limit = []
-            self.limit.append(self.learner_pos[0] - 3)  # start_x
-            self.limit.append(self.learner_pos[1] - 3)  # start_y
-            self.limit.append(self.learner_pos[0] + 4)  # end_x
-            self.limit.append(self.learner_pos[1] + 4)  # end_y
-            for i in range(len(self.limit)):
-                if self.limit[i] < 0:
-                    self.limit[i] = 0
-                elif self.limit[i] > self.width:
-                    self.limit[i] = self.width
-            for x in range(self.limit[0], self.limit[2]):
-                for y in range(self.limit[1], self.limit[3]):
-                    if self.chemical_pos[str(x) + str(y)] > self.max:  # CERCO IL MAX VALORE DI FEROMONE NELLE VICINANZE E PRENDO LE SUE COORDINATE
-                        self.max = self.chemical_pos[str(x) + str(y)]
-                        self.cord_max.append(x)
-                        self.cord_max.append(y)
-            if self.max > self.sniff_threshold:
+            max_pheromone, max_coords = self._find_max_pheromone(self.learner_pos, self.smell_area)
+            if max_pheromone > self.sniff_threshold:
                 # FIXME codice quasi esattamente duplicato da follow_pheromone()
                 if self.cord_max[0] > self.learner_pos[0] and self.cord_max[1] > self.learner_pos[1]:
                     self.learner_pos[0] += self.move_step
