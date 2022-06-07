@@ -99,7 +99,7 @@ class Slime(gym.Env):
     def step(self, action: int):
         """
 
-        :param action:
+        :param action: 0 = rng_walk, 1 = drop_chemical, 2 = follow_pheromone
         :return:
         """
         # MOVING NON LEARNER SLIME
@@ -108,7 +108,7 @@ class Slime(gym.Env):
             self.cord_max_lv = []
             self.bonds = []
 
-            self._find_max_lv(turtle)  # DOC find patch where chemical is max
+            self._find_max_lv(turtle)  # DOC find nearby patch where chemical is max
 
             if self.max_lv > self.sniff_threshold:
 
@@ -310,6 +310,33 @@ class Slime(gym.Env):
             self.non_learner_pos[turtle][0] -= self.move_step
         else:
             pass  # allora il punto è dove mi trovo quindi stò fermo
+
+    def _find_max_pheromone(self, pos, area):
+        """
+
+        :param pos: the x,y position of the turtle looking for pheromone
+        :param area: the square area where to look within
+        :return: the maximum pheromone level found and its x,y position
+        """
+        bounds = [pos[0] - area // 2,   # DOC min x
+                  pos[1] - area // 2,   # DOC min y
+                  pos[0] + area // 2,   # DOC max x
+                  pos[1] + area // 2]   # DOC max y
+        for i in range(len(bounds)):
+            if bounds[i] < 0:
+                bounds[i] = 0
+            elif bounds[i] > self.width:
+                bounds[i] = self.width
+
+        max_ph = -1
+        max_pos = []
+        for x in range(self.bonds[0], self.bonds[2]):
+            for y in range(self.bonds[1], self.bonds[3]):
+                if self.chemical_pos[str(x) + str(y)] > max_ph:
+                    max_ph = self.chemical_pos[str(x) + str(y)]
+                    max_pos = [x, y]
+
+        return max_ph, max_pos
 
     def _find_max_lv(self, turtle):
         """
