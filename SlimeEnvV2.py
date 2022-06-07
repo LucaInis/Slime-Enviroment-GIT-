@@ -9,52 +9,70 @@ import random
 
 
 class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dimensional space of N boolean values
-    def contains(self, x):
-        pass
-
     def __init__(self, size=None):
         assert isinstance(size, int) and size > 0
         self.size = size
+        self.values = [False for _ in range(self.size)]
         gym.Space.__init__(self, (), bool)
 
+    def contains(self, x):
+        return x in self.values
+
     def sample(self):
-        b = [random.choice([True, False]) for _ in range(self.size)]
-        return b
+        #return [random.choice([True, False]) for _ in range(self.size)]
+        return self.values
 
 
 class Slime(gym.Env):
-
     metadata = {"render_modes": "human", "render_fps": 30}
 
-    # cluster_limit = cluster_threshold
     def __init__(self,
-                 render_mode: Optional[str] = None,
-                 sniff_threshold=12,        # controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)—unclear effect on learning, could be negligible
-                 step=5,                    # DOC di quanti pixels si muovono le turtles
-                 cluster_threshold=5,       # controls the minimum number of slimes needed to consider an aggregate within cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more difficult to obtain a positive reward for being within a cluster for learning slimes
-                 population=650,            # controls the number of non-learning slimes (= green turtles)
-                 grid_size=500,             # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
+                 population=650,
+                 sniff_threshold=12,
+                 cluster_threshold=5,
+                 cluster_radius=20,
                  rew=100,
                  penalty=-1,
-                 cluster_radius=20):
+                 render_mode: Optional[str] = None,
+                 step=5,
+                 grid_size=500):
+        """
+
+        :param population: Controls the number of non-learning slimes (= green turtles)
+        :param sniff_threshold: Controls how sensitive slimes are to pheromone (higher values make slimes less sensitive
+        to pheromone)—unclear effect on learning, could be negligible
+        :param cluster_threshold: Controls the minimum number of slimes needed to consider an aggregate within
+        cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more
+        difficult to obtain a positive reward for being within a cluster for learning slimes
+        :param cluster_radius: Controls the range considered by slimes to count other slimes within a cluster (the
+        higher the easier to form clusters, as turtles far apart are still counted together)—the higher the easier it is
+        to obtain a positive reward for being within a cluster for learning slimes
+        :param rew: Base reward for being in a cluster
+        :param penalty: Base penalty for not being in a cluster
+        :param render_mode:
+        :param step: How many pixels do turtle move at each movement step
+        :param grid_size: Simulation area is always a square
+        """
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
-        self.sniff_threshold = sniff_threshold
-        self.reward = rew
-        self.penalty = penalty
-        self.reward_list = []
-        self.move_step = step  # di quanto si muovono le turtle ogni tick
         self.population = population
-        self.count_ticks_cluster = 0  # conta i tick che la turtle passa in un cluster
+        self.sniff_threshold = sniff_threshold
         self.cluster_threshold = cluster_threshold
         self.cluster_radius = cluster_radius
-        self.first_gui = True
+        self.reward = rew
+        self.penalty = penalty
+
+        self.move_step = step
         self.width = grid_size
         self.height = grid_size
 
+        self.reward_list = []
+        self.count_ticks_cluster = 0    # conta i tick che la turtle passa in un cluster
+
+        self.first_gui = True
+
         # create learner turtle
         self.cord_learner_turtle = [np.random.randint(10, self.width - 10) for _ in range(2)]
-
         # create NON learner turtle
         self.cord_non_learner_turtle = {}
         for p in range(self.population):
@@ -67,12 +85,18 @@ class Slime(gym.Env):
             for y in range(self.height + 1):
                 self.chemicals_level[str(x) + str(y)] = 0
 
-        self.action_space = spaces.Discrete(3)
-        self.observation_space = BooleanSpace(size=2)
-        self.observation = [False, False]  # FIXME di fatto non usi lo spazio in questo modo
+        self.action_space = spaces.Discrete(3)  # DOC 0 = rng_walk, 1 = drop_chemical, 2 = follow_pheromone TODO as dict
+        self.observation_space = BooleanSpace(size=2)   # DOC observation_space[0] = whether there is chemical in turtle
+                                                        # patch
+                                                        # DOC observation_space[1] = whether the turtle is in a cluster
+        self.observation = [False, False]   # FIXME di fatto non usi lo spazio in questo modo
 
-    # step function
-    def step(self, action: int):  # NB check whether type-hint "int" is a problem for Gym Env sub-classing
+    def step(self, action: int):
+        """
+
+        :param action:
+        :return:
+        """
         # MOVING NON LEARNER SLIME
         for turtle in self.cord_non_learner_turtle:
             self.max_lv = 0
