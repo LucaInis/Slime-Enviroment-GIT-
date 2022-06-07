@@ -3,11 +3,15 @@ from typing import Optional
 import gym
 import pygame
 from gym import spaces
+
 import numpy as np
+import random
 
 
-# creo un custom space
-class Boolean(gym.Space):
+class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dimensional space of N boolean values
+    def contains(self, x):
+        pass
+
     def __init__(self, size=None):
         assert isinstance(size, int) and size > 0
         self.size = size
@@ -26,7 +30,7 @@ class Slime(gym.Env):
     def __init__(self,
                  render_mode: Optional[str] = None,
                  sniff_threshold=12,        # controls how sensitive slimes are to pheromone (higher values make slimes less sensitive to pheromone)—unclear effect on learning, could be negligible
-                 step=5,                    # QUESTION di quanti pixels si muovono le turtles?
+                 step=5,                    # DOC di quanti pixels si muovono le turtles
                  cluster_threshold=5,       # controls the minimum number of slimes needed to consider an aggregate within cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more difficult to obtain a positive reward for being within a cluster for learning slimes
                  population=650,            # controls the number of non-learning slimes (= green turtles)
                  grid_size=500,             # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
@@ -64,7 +68,7 @@ class Slime(gym.Env):
                 self.chemicals_level[str(x) + str(y)] = 0
 
         self.action_space = spaces.Discrete(3)
-        self.observation_space = Boolean(size=2)
+        self.observation_space = BooleanSpace(size=2)
         self.observation = [False, False]  # FIXME di fatto non usi lo spazio in questo modo
 
     # step function
@@ -284,7 +288,7 @@ class Slime(gym.Env):
         :param turtle: the sniffing turtle
         :return: x,y of patch with max chemical within radius
         """
-        # QUESTION ??? raggio del vicinato delle patch?
+        # DOC raggio entro cui cercare feromone
         self.bonds.append(self.cord_non_learner_turtle[turtle][0] - 3)
         self.bonds.append(self.cord_non_learner_turtle[turtle][1] - 3)
         self.bonds.append(self.cord_non_learner_turtle[turtle][0] + 4)
