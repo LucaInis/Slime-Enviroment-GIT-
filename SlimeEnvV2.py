@@ -25,6 +25,9 @@ class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-di
     def observe(self):
         return self.values
 
+    def change(self, p, value):
+        self.values[p] = value
+
     def change(self, values):
         self.values = values
 
@@ -95,16 +98,15 @@ class Slime(gym.Env):
             for y in range(self.height + 1):
                 self.chemical_pos[str(x) + str(y)] = 0
 
-        self.action_space = spaces.Discrete(3)  # DOC 0 = rng_walk, 1 = drop_chemical, 2 = follow_pheromone TODO as dict
-        self.observation_space = BooleanSpace(size=2)   # DOC observation_space[0] = whether there is chemical in turtle
-                                                        # patch
-                                                        # DOC observation_space[1] = whether the turtle is in a cluster
+        self.action_space = spaces.Discrete(3)          # DOC 0 = random walk, 1 = drop pheromone, 2 = follow pheromone TODO as dict
+        self.observation_space = BooleanSpace(size=2)   # DOC [0] = whether the turtle is in a cluster
+                                                        # DOC [1] = whether there is chemical in turtle patch
         self.observation = [False, False]   # FIXME di fatto non usi lo spazio in questo modo
 
     def step(self, action: int):
         """
 
-        :param action: 0 = rng_walk, 1 = drop_chemical, 2 = follow_pheromone
+        :param action: 0 = random walk, 1 = drop pheromone, 2 = follow pheromone
         :return:
         """
         for turtle in self.non_learner_pos:
@@ -119,39 +121,13 @@ class Slime(gym.Env):
                 self.follow_pheromone(turtle)
             else:
                 self.rng_walk(turtle)
+                self.walk(self.non_learner_pos[turtle])
 
             self.drop_chemical()
             self._keep_in_screen(turtle)
 
-        # FIXME codice quasi esattamente duplicato da find_max_lv()
-        # MOVING LEARNER SLIME
-        self.max = 0
-        self.cord_max = []
-        self.limit = []
-        self.limit.append(self.learner_pos[0] - 3)  # start_x
-        self.limit.append(self.learner_pos[1] - 3)  # start_y
-        self.limit.append(self.learner_pos[0] + 4)  # end_x
-        self.limit.append(self.learner_pos[1] + 4)  # end_y
-        for i in range(len(self.limit)):
-            if self.limit[i] < 0:
-                self.limit[i] = 0
-            elif self.limit[i] > self.width:
-                self.limit[i] = self.width
-        # FIXME codice quasi esattamente duplicato da rng_walk()
-        if action == 0:  # RANDOM WALK
-            a = np.random.randint(4)  # faccio si che si possa muovere solo in diagonale
-            if a == 0:
-                self.learner_pos[0] += self.move_step
-                self.learner_pos[1] += self.move_step
-            elif a == 1:
-                self.learner_pos[0] -= self.move_step
-                self.learner_pos[1] += self.move_step
-            elif a == 2:
-                self.learner_pos[0] += self.move_step
-                self.learner_pos[1] -= self.move_step
-            else:
-                self.learner_pos[0] -= self.move_step
-                self.learner_pos[1] -= self.move_step
+        if action == 0:  # DOC random walk
+            self.walk(self.learner_pos)
 
             # FIXME codice quasi esattamente duplicato da keep_in_screen()
             # Per evitare che lo Slime learner esca dallo schermo
@@ -169,6 +145,19 @@ class Slime(gym.Env):
                     self.chemical_pos[str(x) + str(y)] += 2  # QUESTION dunque viene depositata la stessa quantità di feromone nell'area tra i limiti fissati?
         elif action == 2:  # CHASE MAX CHEMICAL
             # FIXME codice quasi esattamente duplicato da find_max_lv()
+            # MOVING LEARNER SLIME
+            self.max = 0
+            self.cord_max = []
+            self.limit = []
+            self.limit.append(self.learner_pos[0] - 3)  # start_x
+            self.limit.append(self.learner_pos[1] - 3)  # start_y
+            self.limit.append(self.learner_pos[0] + 4)  # end_x
+            self.limit.append(self.learner_pos[1] + 4)  # end_y
+            for i in range(len(self.limit)):
+                if self.limit[i] < 0:
+                    self.limit[i] = 0
+                elif self.limit[i] > self.width:
+                    self.limit[i] = self.width
             for x in range(self.limit[0], self.limit[2]):
                 for y in range(self.limit[1], self.limit[3]):
                     if self.chemical_pos[str(x) + str(y)] > self.max:  # CERCO IL MAX VALORE DI FEROMONE NELLE VICINANZE E PRENDO LE SUE COORDINATE
@@ -244,6 +233,26 @@ class Slime(gym.Env):
             self.non_learner_pos[turtle][1] = self.height - 15
         elif self.non_learner_pos[turtle][1] < 10:
             self.non_learner_pos[turtle][1] = 15
+
+    def walk(self, pos):
+        """
+        Action 0: move in random direction
+        :param pos: the x,y position of the turtle looking for pheromone
+        :return: None (pos is updated after movement as side-effec)
+        """
+        act = np.random.randint(4)
+        if act == 0:
+            pos[0] += self.move_step
+            pos[1] += self.move_step
+        elif act == 1:
+            pos[0] -= self.move_step
+            pos[1] -= self.move_step
+        elif act == 2:
+            pos[0] -= self.move_step
+            pos[1] += self.move_step
+        else:
+            pos[0] += self.move_step
+            pos[1] -= self.move_step
 
     def rng_walk(self, turtle):
         """
