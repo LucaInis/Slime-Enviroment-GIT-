@@ -35,6 +35,7 @@ class Slime(gym.Env):
     def __init__(self,
                  population=650,
                  sniff_threshold=12,
+                 smell_area=4,
                  cluster_threshold=5,
                  cluster_radius=20,
                  rew=100,
@@ -44,25 +45,29 @@ class Slime(gym.Env):
                  grid_size=500):
         """
 
-        :param population: Controls the number of non-learning slimes (= green turtles)
-        :param sniff_threshold: Controls how sensitive slimes are to pheromone (higher values make slimes less sensitive
-        to pheromone)—unclear effect on learning, could be negligible
-        :param cluster_threshold: Controls the minimum number of slimes needed to consider an aggregate within
-        cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more
-        difficult to obtain a positive reward for being within a cluster for learning slimes
-        :param cluster_radius: Controls the range considered by slimes to count other slimes within a cluster (the
-        higher the easier to form clusters, as turtles far apart are still counted together)—the higher the easier it is
-        to obtain a positive reward for being within a cluster for learning slimes
-        :param rew: Base reward for being in a cluster
-        :param penalty: Base penalty for not being in a cluster
+        :param population:          Controls the number of non-learning slimes (= green turtles)
+        :param sniff_threshold:     Controls how sensitive slimes are to pheromone (higher values make slimes less
+                                    sensitive to pheromone)—unclear effect on learning, could be negligible
+        :param smell_area:          Controls the square area sorrounding the turtle whithin which it smells pheromone
+        :param cluster_threshold:   Controls the minimum number of slimes needed to consider an aggregate within
+                                    cluster-radius a cluster (the higher the more difficult to consider an aggregate a
+                                    cluster)—the higher the more difficult to obtain a positive reward for being within
+                                    a cluster for learning slimes
+        :param cluster_radius:      Controls the range considered by slimes to count other slimes within a cluster (the
+                                    higher the easier to form clusters, as turtles far apart are still counted together)
+                                    —the higher the easier it is to obtain a positive reward for being within a cluster
+                                    for learning slimes
+        :param rew:                 Base reward for being in a cluster
+        :param penalty:             Base penalty for not being in a cluster
         :param render_mode:
-        :param step: How many pixels do turtle move at each movement step
-        :param grid_size: Simulation area is always a square
+        :param step:                How many pixels do turtle move at each movement step
+        :param grid_size:           Simulation area is always a square
         """
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
         self.population = population
         self.sniff_threshold = sniff_threshold
+        self.smell_area = smell_area
         self.cluster_threshold = cluster_threshold
         self.cluster_radius = cluster_radius
         self.reward = rew
@@ -102,26 +107,20 @@ class Slime(gym.Env):
         :param action: 0 = rng_walk, 1 = drop_chemical, 2 = follow_pheromone
         :return:
         """
-        # MOVING NON LEARNER SLIME
         for turtle in self.non_learner_pos:
             self.max_lv = 0
             self.cord_max_lv = []
             self.bonds = []
 
-            self._find_max_lv(turtle)  # DOC find nearby patch where chemical is max
+            self._find_max_lv(turtle)
+            max_pheromone, max_coords = self._find_max_pheromone(self.non_learner_pos[turtle], self.smell_area)
 
-            if self.max_lv > self.sniff_threshold:
-
-                self.follow_pheromone(turtle)  # DOC move towards greatest pheromone
-
+            if max_pheromone > self.sniff_threshold:
+                self.follow_pheromone(turtle)
             else:
-                # RANDOM WALK
                 self.rng_walk(turtle)
 
-            # DROP CHEMICALS
             self.drop_chemical()
-
-            # PER EVITARE ESCANO DALLO SCHERMO
             self._keep_in_screen(turtle)
 
         # FIXME codice quasi esattamente duplicato da find_max_lv()
