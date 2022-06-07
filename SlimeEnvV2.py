@@ -29,17 +29,21 @@ class Slime(gym.Env):
                  step=5,                    # QUESTION di quanti pixels si muovono le turtles?
                  cluster_threshold=5,       # controls the minimum number of slimes needed to consider an aggregate within cluster-radius a cluster (the higher the more difficult to consider an aggregate a cluster)—the higher the more difficult to obtain a positive reward for being within a cluster for learning slimes
                  population=650,            # controls the number of non-learning slimes (= green turtles)
-                 grid_size=500):            # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
+                 grid_size=500,             # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
+                 rew=100,
+                 penalty=-1,
+                 cluster_radius=20):
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
         self.sniff_threshold = sniff_threshold
-        self.reward = 100  # TODO rendere parametrico
-        self.penalty = -1  # TODO rendere parametrico
+        self.reward = rew
+        self.penalty = penalty
         self.reward_list = []
         self.move_step = step  # di quanto si muovono le turtle ogni tick
         self.population = population
         self.count_ticks_cluster = 0  # conta i tick che la turtle passa in un cluster
-        self.cluster_threshold = cluster_threshold  # TODO rendere parametrico il range, che in netlogo è il 'cluster-radius' -- numero min di turtle affinché si consideri cluster (in range 20 atm)
+        self.cluster_threshold = cluster_threshold
+        self.cluster_radius = cluster_radius
         self.first_gui = True
         self.width = grid_size
         self.height = grid_size
@@ -317,8 +321,8 @@ class Slime(gym.Env):
     def _count_cluster(self):
         self.count_turtle = 1
         self.check_cord = []
-        for x in range(self.cord_learner_turtle[0] - 9, self.cord_learner_turtle[0] + 10):  #  TODO rendere parametrico come 'cluster-threshlod' in netlogo
-            for y in range(self.cord_learner_turtle[1] - 9, self.cord_learner_turtle[1] + 10):
+        for x in range(self.cord_learner_turtle[0] - self.cluster_radius/2 - 1, self.cord_learner_turtle[0] + self.cluster_radius/2):
+            for y in range(self.cord_learner_turtle[1] - self.cluster_radius/2 - 1, self.cord_learner_turtle[1] + self.cluster_radius/2):
                 self.check_cord.append([x, y])
         for pair in self.cord_non_learner_turtle.values():
             if pair in self.check_cord:
@@ -439,7 +443,7 @@ episodes = 100
 ticks_per_episode = 500
 # consigliabile almeno 500 tick_per_episode, altrimenti difficile vedere fenomeni di aggregazione
 
-env = Slime(sniff_threshold=12, step=5, cluster_threshold=5, population=100, grid_size=500)
+env = Slime(sniff_threshold=12, step=5, cluster_threshold=5, population=100, grid_size=500, rew=100, penalty=-1)
 for ep in range(1, episodes+1):
     env.reset()
     print(f"EPISODE: {ep}")
