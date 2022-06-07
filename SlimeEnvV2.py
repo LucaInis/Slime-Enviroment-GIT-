@@ -23,12 +23,27 @@ class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-di
         #return self.values
 
     def observe(self):
+        """
+
+        :return:
+        """
         return self.values
 
     def change(self, p, value):
+        """
+
+        :param p:
+        :param value:
+        :return:
+        """
         self.values[p] = value
 
     def change(self, values):
+        """
+
+        :param values:
+        :return:
+        """
         self.values = values
 
 
@@ -91,14 +106,14 @@ class Slime(gym.Env):
 
         self.first_gui = True
 
-        # create learner turtle
+        # DOC create learner turtle
         self.learner_pos = [np.random.randint(10, self.width-10) for _ in range(2)]  # QUESTION +10 / -10 è per non mettere turtles troppo vicine al bordo?
-        # create NON learner turtle
+        # DOC create NON learner turtles
         self.non_learner_pos = {}
         for p in range(self.population):
             self.non_learner_pos[str(p)] = [np.random.randint(10, self.width-10) for _ in range(2)]
 
-        # patches-own [chemical] - amount of pheromone in each patch
+        # DOC patches-own [chemical] - amount of pheromone in each patch
         self.chemical_pos = {}
         for x in range(self.width + 1):
             for y in range(self.height + 1):
@@ -134,20 +149,10 @@ class Slime(gym.Env):
             self.lay_pheromone(self.non_learner_pos[turtle], self.lay_area, self.lay_amount)
             self._keep_in_screen(turtle)
 
-        # DOC learners act
+        # DOC learner act
         if action == 0:  # DOC random walk
             self.walk(self.learner_pos)
-
-            # FIXME codice quasi esattamente duplicato da keep_in_screen()
-            # Per evitare che lo Slime learner esca dallo schermo
-            if self.learner_pos[0] > self.width - 10:
-                self.learner_pos[0] = self.width - 15
-            elif self.learner_pos[0] < 10:
-                self.learner_pos[0] = 15
-            if self.learner_pos[1] > self.height - 10:
-                self.learner_pos[1] = self.height - 15
-            elif self.learner_pos[1] < 10:
-                self.learner_pos[1] = 15
+            self._wrap(self.learner_pos)
         elif action == 1:  # DROP CHEMICALS
             self.lay_pheromone(self.learner_pos, self.lay_area, self.lay_amount)
         elif action == 2:  # CHASE MAX CHEMICAL
@@ -189,6 +194,13 @@ class Slime(gym.Env):
         return self.observation, cur_reward, False, {}
 
     def lay_pheromone(self, pos, area, amount):
+        """
+
+        :param pos:
+        :param area:
+        :param amount:
+        :return:
+        """
         bounds = [pos[0] - area // 2,  # DOC min x
                   pos[1] - area // 2,  # DOC min y
                   pos[0] + area // 2,  # DOC max x
@@ -203,30 +215,32 @@ class Slime(gym.Env):
                 self.chemical_pos[str(x) + str(y)] += amount
 
     def drop_chemical(self):
-        """
-        Action 1: drop chemical in patch where turtle is
-        :return:
-        """
         for x in range(self.bonds[0], self.bonds[2]):
             for y in range(self.bonds[1], self.bonds[3]):
                 self.chemical_pos[str(x) + str(
                     y)] += 2  # TODO rendere parametrica la quantità di feromone, come 'chemical-drop' in netlogo
 
     def _evaporate(self):
-        """
-        evaporate pheromone
-        :return:
-        """
         for patch in self.chemical_pos:
             if self.chemical_pos[patch] != 0:
                 self.chemical_pos[patch] -= 2  # TODO rendere parametrico come 'evaporation-rate' in netlogo
 
-    def _keep_in_screen(self, turtle):
+    def _wrap(self, pos):
         """
-        keep turtles within screen
-        :param turtle:
+
+        :param pos:
         :return:
         """
+        if pos[0] > self.width - 10:  # QUESTION qual è il criterio per questi due numeri?
+            pos[0] = self.width - 15
+        elif pos[0] < 10:
+            pos[0] = 15
+        if pos[1] > self.height - 10:
+            pos[1] = self.height - 15
+        elif pos[1] < 10:
+            pos[1] = 15
+
+    def _keep_in_screen(self, turtle):
         if self.non_learner_pos[turtle][0] > self.width - 10:
             self.non_learner_pos[turtle][0] = self.width - 15
         elif self.non_learner_pos[turtle][0] < 10:
@@ -257,11 +271,6 @@ class Slime(gym.Env):
             pos[1] -= self.move_step
 
     def rng_walk(self, turtle):
-        """
-        Action 0: move in random direction
-        :param turtle:
-        :return:
-        """
         act = np.random.randint(4)
         if act == 0:
             self.non_learner_pos[turtle][0] += self.move_step
@@ -349,11 +358,6 @@ class Slime(gym.Env):
         return max_ph, max_pos
 
     def _find_max_lv(self, turtle):
-        """
-        find patch where chemical pheromone level is max within radius
-        :param turtle: the sniffing turtle
-        :return: x,y of patch with max chemical within radius
-        """
         # DOC raggio entro cui cercare feromone
         self.bonds.append(self.non_learner_pos[turtle][0] - 3)
         self.bonds.append(self.non_learner_pos[turtle][1] - 3)
