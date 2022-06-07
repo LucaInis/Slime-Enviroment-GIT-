@@ -321,8 +321,8 @@ class Slime(gym.Env):
     def _count_cluster(self):
         self.count_turtle = 1
         self.check_cord = []
-        for x in range(self.cord_learner_turtle[0] - self.cluster_radius/2 - 1, self.cord_learner_turtle[0] + self.cluster_radius/2):
-            for y in range(self.cord_learner_turtle[1] - self.cluster_radius/2 - 1, self.cord_learner_turtle[1] + self.cluster_radius/2):
+        for x in range(self.cord_learner_turtle[0] - self.cluster_radius//2, self.cord_learner_turtle[0] + self.cluster_radius//2):
+            for y in range(self.cord_learner_turtle[1] - self.cluster_radius//2, self.cord_learner_turtle[1] + self.cluster_radius//2):
                 self.check_cord.append([x, y])
         for pair in self.cord_non_learner_turtle.values():
             if pair in self.check_cord:
