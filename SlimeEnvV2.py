@@ -303,7 +303,7 @@ class Slime(gym.Env):
             for y in range(self.learner_pos[1] - self.cluster_radius // 2, self.learner_pos[1] + self.cluster_radius // 2):
                 area.append([x, y])
         for pair in self.non_learner_pos.values():
-            if pair in self.check_cord:
+            if pair in area:
                 cluster += 1
         return cluster
 
@@ -357,11 +357,11 @@ class Slime(gym.Env):
         Reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside clusters
         :return: the reward
         """
-        self._check_cluster()
-        if self.count_turtle >= self.cluster_threshold:
+        cluster = self._check_cluster()
+        if cluster >= self.cluster_threshold:
             self.count_ticks_cluster += 1
 
-        cur_reward = ((self.count_turtle ^ 2) / self.cluster_threshold) * self.reward \
+        cur_reward = ((cluster ^ 2) / self.cluster_threshold) * self.reward \
                      + \
                      (((ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode) * self.penalty)
 
