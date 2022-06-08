@@ -10,6 +10,10 @@ import random
 
 class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dimensional space of N boolean values
     def __init__(self, size=None):
+        """
+        A space of boolean values
+        :param size: how many boolean values the space is made of
+        """
         assert isinstance(size, int) and size > 0
         self.size = size
         self.values = [False for _ in range(self.size)]
@@ -24,25 +28,25 @@ class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-di
 
     def observe(self):
         """
-
-        :return:
+        Get the current observation
+        :return: the current observation
         """
         return self.values
 
     def change(self, p, value):
         """
-
-        :param p:
-        :param value:
-        :return:
+        Set a specific boolean value for the current observation
+        :param p: which boolean values to change (position index)
+        :param value: the boolean value to set
+        :return: None
         """
         self.values[p] = value
 
     def change(self, values):
         """
-
-        :param values:
-        :return:
+        Set all the boolean values for the current observation
+        :param values: the boolean values to set
+        :return: None
         """
         self.values = values
 
@@ -64,7 +68,6 @@ class Slime(gym.Env):
                  grid_size=500,
                  render_mode: Optional[str] = None):
         """
-
         :param population:          Controls the number of non-learning slimes (= green turtles)
         :param sniff_threshold:     Controls how sensitive slimes are to pheromone (higher values make slimes less
                                     sensitive to pheromone)—unclear effect on learning, could be negligible
@@ -125,11 +128,7 @@ class Slime(gym.Env):
         self.observation = [False, False]   # FIXME di fatto non usi lo spazio in questo modo
 
     def step(self, action: int):
-        """
-
-        :param action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
-        :return:
-        """
+        # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
         # non learners act
         for turtle in self.non_learner_pos:
             max_pheromone, max_coords = self._find_max_pheromone(self.non_learner_pos[turtle], self.smell_area)
@@ -142,21 +141,21 @@ class Slime(gym.Env):
             self.lay_pheromone(self.non_learner_pos[turtle], self.lay_area, self.lay_amount)
             self._wrap(self.non_learner_pos[turtle])
 
-        # learner act
-        if action == 0:  # DOC random walk
+        # learner acts
+        if action == 0:  # DOC walk
             self.walk(self.learner_pos)
             self._wrap(self.learner_pos)
-        elif action == 1:  # DROP CHEMICALS
+        elif action == 1:  # DOC lay_pheromone
             self.lay_pheromone(self.learner_pos, self.lay_area, self.lay_amount)
-        elif action == 2:  # CHASE MAX CHEMICAL
+        elif action == 2:  # DOC follow_pheromone
             max_pheromone, max_coords = self._find_max_pheromone(self.learner_pos, self.smell_area)
             if max_pheromone > self.sniff_threshold:
                 self.follow_pheromone(max_coords, self.learner_pos)
             else:
-                pass
+                pass  # TODO check
 
-        cur_reward = Slime.rewardfunc7(self)  # <--reward function in uso
-        self.observation = Slime._get_obs(self)
+        cur_reward = self.rewardfunc7()
+        self.observation = self._get_obs()
 
         self._evaporate()
 
@@ -164,10 +163,22 @@ class Slime(gym.Env):
 
     def lay_pheromone(self, pos, area, amount):
         """
+        Lay 'amount' pheromone in square 'area' centred in 'pos'
+        :param pos: the x,y position taken as centre of pheromone deposit area
+        :param area: the square area within which pheromone will be laid
+        :param amount: the amount of pheromone to deposit
+        :return: None (environment properties are changed as side effect)
+        """
+        bounds = self._get_bounds(area, pos)
+        for x in range(bounds[0], bounds[2]):
+            for y in range(bounds[1], bounds[3]):
+                self.chemical_pos[str(x) + str(y)] += amount
 
-        :param pos:
+    def _get_bounds(self, area, pos):
+        """
+
         :param area:
-        :param amount:
+        :param pos:
         :return:
         """
         bounds = [pos[0] - area // 2,  # DOC min x
@@ -179,9 +190,7 @@ class Slime(gym.Env):
                 bounds[i] = 0
             elif bounds[i] > self.width:
                 bounds[i] = self.width
-        for x in range(bounds[0], bounds[2]):
-            for y in range(bounds[1], bounds[3]):
-                self.chemical_pos[str(x) + str(y)] += amount
+        return bounds
 
     def _evaporate(self):
         for patch in self.chemical_pos:
@@ -260,15 +269,7 @@ class Slime(gym.Env):
         :param area: the square area where to look within
         :return: the maximum pheromone level found and its x,y position
         """
-        bounds = [pos[0] - area // 2,   # DOC min x
-                  pos[1] - area // 2,   # DOC min y
-                  pos[0] + area // 2,   # DOC max x
-                  pos[1] + area // 2]   # DOC max y
-        for i in range(len(bounds)):
-            if bounds[i] < 0:
-                bounds[i] = 0
-            elif bounds[i] > self.width:
-                bounds[i] = self.width
+        bounds = self._get_bounds(area, pos)
 
         max_ph = -1
         max_pos = []
@@ -281,32 +282,37 @@ class Slime(gym.Env):
         return max_ph, max_pos
 
     def _get_obs(self):
-        # da spostare QUESTION perchè "da spostare"?
-        self._check_chemical()
-        self._count_cluster()
+        """
 
-        if self.count_turtle >= self.cluster_threshold:
-            self.observation[0] = True
-        else:
-            self.observation[0] = False
+        :return:
+        """
+        self.observation[0] = self._check_cluster() >= self.cluster_threshold
+        # da spostare QUESTION perchè "da spostare"?
+        self.observation[1] = self._check_chemical()
 
         return self.observation
 
-    def _count_cluster(self):
-        self.count_turtle = 1
-        self.check_cord = []
+    def _check_cluster(self):
+        """
+
+        :return:
+        """
+        cluster = 1
+        area = []
         for x in range(self.learner_pos[0] - self.cluster_radius // 2, self.learner_pos[0] + self.cluster_radius // 2):
             for y in range(self.learner_pos[1] - self.cluster_radius // 2, self.learner_pos[1] + self.cluster_radius // 2):
-                self.check_cord.append([x, y])
+                area.append([x, y])
         for pair in self.non_learner_pos.values():
             if pair in self.check_cord:
-                self.count_turtle += 1
+                cluster += 1
+        return cluster
 
     def _check_chemical(self):
-        if self.chemical_pos[str(self.learner_pos[0]) + str(self.learner_pos[1])] != 0:
-            self.observation[1] = True
-        else:
-            self.observation[1] = False
+        """
+
+        :return:
+        """
+        return self.chemical_pos[str(self.learner_pos[0]) + str(self.learner_pos[1])] > 0
 
     def rewardfunc1(self):
         self.count_turtle = 1
@@ -348,10 +354,10 @@ class Slime(gym.Env):
 
     def rewardfunc7(self):
         """
-        reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside clusters
-        :return:
+        Reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside clusters
+        :return: the reward
         """
-        self._count_cluster()
+        self._check_cluster()
         if self.count_turtle >= self.cluster_threshold:
             self.count_ticks_cluster += 1
 
