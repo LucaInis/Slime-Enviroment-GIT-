@@ -106,14 +106,14 @@ class Slime(gym.Env):
 
         self.first_gui = True
 
-        # DOC create learner turtle
+        # create learner turtle
         self.learner_pos = [np.random.randint(10, self.width-10) for _ in range(2)]  # QUESTION +10 / -10 è per non mettere turtles troppo vicine al bordo?
-        # DOC create NON learner turtles
+        # create NON learner turtles
         self.non_learner_pos = {}
         for p in range(self.population):
             self.non_learner_pos[str(p)] = [np.random.randint(10, self.width-10) for _ in range(2)]
 
-        # DOC patches-own [chemical] - amount of pheromone in each patch
+        # patches-own [chemical] - amount of pheromone in each patch
         self.chemical_pos = {}
         for x in range(self.width + 1):
             for y in range(self.height + 1):
@@ -130,7 +130,7 @@ class Slime(gym.Env):
         :param action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
         :return:
         """
-        # DOC non learners act
+        # non learners act
         for turtle in self.non_learner_pos:
             self.max_lv = 0  # TODO remove
             self.cord_max_lv = []  # TODO remove
@@ -140,16 +140,18 @@ class Slime(gym.Env):
             max_pheromone, max_coords = self._find_max_pheromone(self.non_learner_pos[turtle], self.smell_area)
 
             if max_pheromone > self.sniff_threshold:
-                self.follow_pheromone(turtle)
+                self.follow_pheromone_old(turtle)  # TODO remove
+                self.follow_pheromone(max_coords, self.non_learner_pos[turtle])
             else:
                 self.rng_walk(turtle)  # TODO remove
                 self.walk(self.non_learner_pos[turtle])
 
             self.drop_chemical()  # TODO remove
             self.lay_pheromone(self.non_learner_pos[turtle], self.lay_area, self.lay_amount)
-            self._keep_in_screen(turtle)
+            self._keep_in_screen(turtle)  # TODO remove
+            self._wrap(self.non_learner_pos[turtle])
 
-        # DOC learner act
+        # learner act
         if action == 0:  # DOC random walk
             self.walk(self.learner_pos)
             self._wrap(self.learner_pos)
@@ -158,35 +160,12 @@ class Slime(gym.Env):
         elif action == 2:  # CHASE MAX CHEMICAL
             max_pheromone, max_coords = self._find_max_pheromone(self.learner_pos, self.smell_area)
             if max_pheromone > self.sniff_threshold:
-                # FIXME codice quasi esattamente duplicato da follow_pheromone()
-                if self.cord_max[0] > self.learner_pos[0] and self.cord_max[1] > self.learner_pos[1]:
-                    self.learner_pos[0] += self.move_step
-                    self.learner_pos[1] += self.move_step
-                elif self.cord_max[0] < self.learner_pos[0] and self.cord_max[1] < self.learner_pos[1]:
-                    self.learner_pos[0] -= self.move_step
-                    self.learner_pos[1] -= self.move_step
-                elif self.cord_max[0] > self.learner_pos[0] and self.cord_max[1] < self.learner_pos[1]:
-                    self.learner_pos[0] += self.move_step
-                    self.learner_pos[1] -= self.move_step
-                elif self.cord_max[0] < self.learner_pos[0] and self.cord_max[1] > self.learner_pos[1]:
-                    self.learner_pos[0] -= self.move_step
-                    self.learner_pos[1] += self.move_step
-                elif self.cord_max[0] < self.learner_pos[0] and self.cord_max[1] == self.learner_pos[1]:
-                    self.learner_pos[0] -= self.move_step
-                elif self.cord_max[0] > self.learner_pos[0] and self.cord_max[1] == self.learner_pos[1]:
-                    self.learner_pos[0] += self.move_step
-                elif self.cord_max[0] == self.learner_pos[0] and self.cord_max[1] < self.learner_pos[1]:
-                    self.learner_pos[1] -= self.move_step
-                elif self.cord_max[0] == self.learner_pos[0] and self.cord_max[1] > self.learner_pos[1]:
-                    self.learner_pos[1] += self.move_step
-                else:
-                    pass
+                self.follow_pheromone(max_coords, self.learner_pos)
             else:
                 pass
 
         cur_reward = Slime.rewardfunc7(self)  # <--reward function in uso
 
-        # EVAPORATE CHEMICAL
         self._evaporate()
 
         self.observation = Slime._get_obs(self)
