@@ -60,7 +60,7 @@ class Slime(gym.Env):
                  smell_area=10,
                  lay_area=5,
                  lay_amount=1,
-                 evaporation=0.1,
+                 evaporation=0.9,
                  cluster_threshold=20,
                  cluster_radius=20,
                  rew=100,
@@ -234,7 +234,7 @@ class Slime(gym.Env):
         """
         for patch in self.chemical_pos:
             if self.chemical_pos[patch] > 0:
-                self.chemical_pos[patch] -= self.evaporation
+                self.chemical_pos[patch] *= self.evaporation
 
     def _wrap(self, pos):
         """
@@ -461,7 +461,7 @@ env = Slime(population=100,
             smell_area=10,
             lay_area=5,
             lay_amount=1,
-            evaporation=0.1,
+            evaporation=0.9,
             cluster_threshold=20,
             cluster_radius=20,
             rew=100,
