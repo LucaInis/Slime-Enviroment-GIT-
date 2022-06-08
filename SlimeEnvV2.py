@@ -253,8 +253,8 @@ class Slime(gym.Env):
     def walk(self, pos):
         """
         Action 0: move in random direction
-        :param pos: the x,y position of the turtle looking for pheromone
-        :return: None (pos is updated after movement as side-effec)
+        :param pos: the x,y position of the turtle to move
+        :return: None (pos is updated after movement as side-effect)
         """
         act = np.random.randint(4)
         if act == 0:
@@ -285,12 +285,37 @@ class Slime(gym.Env):
             self.non_learner_pos[turtle][0] += self.move_step
             self.non_learner_pos[turtle][1] -= self.move_step
 
-    def follow_pheromone(self, turtle):
+    def follow_pheromone(self, ph_coords, pos):
         """
-        Action 2: move turtle towards greatest pheromone found by _find_max_lv()
-        :param turtle: the turtle to move
-        :return: the new turtle x,y
+        Action 2: move turtle towards greatest pheromone found
+        :param ph_coords: the position where max pheromone has been sensed
+        :param pos: the x,y position of the turtle looking for pheromone
+        :return: None (pos is updated after movement as side-effec)
         """
+        if ph_coords[0] > pos[0] and ph_coords[1] > pos[1]:  # DOC allora il punto si trova in alto a dx
+            pos[0] += self.move_step
+            pos[1] += self.move_step
+        elif ph_coords[0] < pos[0] and ph_coords[1] < pos[1]:  # DOC allora il punto si trova in basso a sx
+            pos[0] -= self.move_step
+            pos[1] -= self.move_step
+        elif ph_coords[0] > pos[0] and ph_coords[1] < pos[1]:  # DOC allora il punto si trova in basso a dx
+            pos[0] += self.move_step
+            pos[1] -= self.move_step
+        elif ph_coords[0] < pos[0] and ph_coords[1] > pos[1]:  # DOC allora il punto si trova in alto a sx
+            pos[0] -= self.move_step
+            pos[1] += self.move_step
+        elif ph_coords[0] == pos[0] and ph_coords[1] < pos[1]:  # DOC allora il punto si trova in basso sulla mia colonna
+            pos[1] -= self.move_step
+        elif ph_coords[0] == pos[0] and ph_coords[1] > pos[1]:  # DOC allora il punto si trova in alto sulla mia colonna
+            pos[1] += self.move_step
+        elif ph_coords[0] > pos[0] and ph_coords[1] == pos[1]:  # DOC allora il punto si trova alla mia dx
+            pos[0] += self.move_step
+        elif ph_coords[0] < pos[0] and ph_coords[1] == pos[1]:  # DOC allora il punto si trova alla mia sx
+            pos[0] -= self.move_step
+        else:
+            pass
+
+    def follow_pheromone_old(self, turtle):
         if self.cord_max_lv[0] > self.non_learner_pos[turtle][0] and self.cord_max_lv[1] > \
                 self.non_learner_pos[turtle][1]:
             # allora il punto si trova in alto a dx
