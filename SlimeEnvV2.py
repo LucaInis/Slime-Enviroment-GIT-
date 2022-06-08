@@ -126,7 +126,7 @@ class Slime(gym.Env):
         self.chemical_pos = {}
         for x in range(self.width + 1):
             for y in range(self.height + 1):
-                self.chemical_pos[str(x) + str(y)] = 0
+                self.chemical_pos[(x, y)] = 0
 
         self.action_space = spaces.Discrete(3)          # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)   # DOC [0] = whether the turtle is in a cluster
@@ -164,7 +164,7 @@ class Slime(gym.Env):
         cur_reward = self.rewardfunc7()
         self.observation = self._get_obs()
 
-        self._diffuse()
+        #self._diffuse()
         self._evaporate()
 
         return self.observation, cur_reward, False, {}
@@ -180,7 +180,7 @@ class Slime(gym.Env):
         bounds = self._get_bounds(area, pos)
         for x in range(bounds[0], bounds[2]):
             for y in range(bounds[1], bounds[3]):
-                self.chemical_pos[str(x) + str(y)] += amount
+                self.chemical_pos[(x, y)] += amount
 
     def _get_bounds(self, area, pos):
         """
@@ -314,8 +314,8 @@ class Slime(gym.Env):
         max_pos = []
         for x in range(bounds[0], bounds[2]):
             for y in range(bounds[1], bounds[3]):
-                if self.chemical_pos[str(x) + str(y)] > max_ph:
-                    max_ph = self.chemical_pos[str(x) + str(y)]
+                if self.chemical_pos[(x, y)] > max_ph:
+                    max_ph = self.chemical_pos[(x, y)]
                     max_pos = [x, y]
 
         return max_ph, max_pos
@@ -351,7 +351,7 @@ class Slime(gym.Env):
         Checks whether there is pheromone on the patch where the learner turtle is
         :return: a boolean
         """
-        return self.chemical_pos[str(self.learner_pos[0]) + str(self.learner_pos[1])] > 0
+        return self.chemical_pos[(self.learner_pos[0], self.learner_pos[1])] > 0
 
     def rewardfunc1(self):
         self.count_turtle = 1
@@ -425,7 +425,7 @@ class Slime(gym.Env):
         self.chemical_pos = {}
         for x in range(self.width + 1):
             for y in range(self.height + 1):
-                self.chemical_pos[str(x) + str(y)] = 0
+                self.chemical_pos[(x, y)] = 0
         return self.observation, 0, False, {}  # TODO check if 0 makes sense
 
     def render(self, **kwargs):
