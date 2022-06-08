@@ -56,18 +56,18 @@ class Slime(gym.Env):
 
     def __init__(self,
                  population=100,
-                 sniff_threshold=3,
-                 smell_area=10,
-                 lay_area=5,
-                 lay_amount=1,
+                 sniff_threshold=1,
+                 smell_area=2,
+                 lay_area=1,
+                 lay_amount=3,
                  evaporation=0.9,
                  cluster_threshold=20,
-                 cluster_radius=20,
+                 cluster_radius=10,
                  rew=100,
                  penalty=-1,
                  episode_ticks=500,
-                 step=3,
-                 grid_size=500,
+                 step=1,
+                 grid_size=250,
                  render_mode: Optional[str] = None):
         """
         :param population:          Controls the number of non-learning slimes (= green turtles)
@@ -126,7 +126,7 @@ class Slime(gym.Env):
         self.chemical_pos = {}
         for x in range(self.width + 1):
             for y in range(self.height + 1):
-                self.chemical_pos[(x, y)] = 0
+                self.chemical_pos[(x, y)] = 0.0
 
         self.action_space = spaces.Discrete(3)          # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)   # DOC [0] = whether the turtle is in a cluster
@@ -164,7 +164,7 @@ class Slime(gym.Env):
         cur_reward = self.rewardfunc7()
         self.observation = self._get_obs()
 
-        #self._diffuse()
+        self._diffuse()
         self._evaporate()
 
         return self.observation, cur_reward, False, {}
@@ -204,6 +204,9 @@ class Slime(gym.Env):
         for patch in self.chemical_pos:
             if self.chemical_pos[patch] > 0:
                 neighbours = self.adj_finder(patch)
+                for pos in neighbours:
+                    self.chemical_pos[pos] += self.chemical_pos[patch] * 1 / (len(neighbours) + 1)
+                self.chemical_pos[patch] = 1 / (len(neighbours) + 1)
 
     def adj_finder(self, position, distance=1):
         """
@@ -455,27 +458,28 @@ class Slime(gym.Env):
 #   MAIN
 EPISODES = 5
 EPISODE_TICKS = 500
+LOG_EVERY = 100
 
 env = Slime(population=100,
-            sniff_threshold=3,
-            smell_area=10,
-            lay_area=5,
-            lay_amount=1,
+            sniff_threshold=1,
+            smell_area=2,
+            lay_area=1,
+            lay_amount=3,
             evaporation=0.9,
             cluster_threshold=20,
-            cluster_radius=20,
+            cluster_radius=10,
             rew=100,
             penalty=-1,
             episode_ticks=EPISODE_TICKS,
-            step=3,
-            grid_size=500,
+            step=1,
+            grid_size=250,
             render_mode="human")
 for ep in range(1, EPISODES + 1):
     env.reset()
-    print(f"EPISODE: {ep}")
+    print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
     for tick in range(EPISODE_TICKS):
         observation, reward, done, info = env.step(env.action_space.sample())
-        # if tick % 2 == 0:
-        print(observation, reward)
+        if tick % LOG_EVERY == 0:
+            print(f"{tick}: {observation}, {reward}")
         env.render()
 env.close()
