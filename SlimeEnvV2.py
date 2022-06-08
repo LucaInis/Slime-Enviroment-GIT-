@@ -132,23 +132,14 @@ class Slime(gym.Env):
         """
         # non learners act
         for turtle in self.non_learner_pos:
-            self.max_lv = 0  # TODO remove
-            self.cord_max_lv = []  # TODO remove
-            self.bonds = []  # TODO remove
-
-            self._find_max_lv(turtle)  # TODO remove
             max_pheromone, max_coords = self._find_max_pheromone(self.non_learner_pos[turtle], self.smell_area)
 
             if max_pheromone > self.sniff_threshold:
-                self.follow_pheromone_old(turtle)  # TODO remove
                 self.follow_pheromone(max_coords, self.non_learner_pos[turtle])
             else:
-                self.rng_walk(turtle)  # TODO remove
                 self.walk(self.non_learner_pos[turtle])
 
-            self.drop_chemical()  # TODO remove
             self.lay_pheromone(self.non_learner_pos[turtle], self.lay_area, self.lay_amount)
-            self._keep_in_screen(turtle)  # TODO remove
             self._wrap(self.non_learner_pos[turtle])
 
         # learner act
@@ -188,8 +179,8 @@ class Slime(gym.Env):
                 bounds[i] = 0
             elif bounds[i] > self.width:
                 bounds[i] = self.width
-        for x in range(self.bonds[0], self.bonds[2]):
-            for y in range(self.bonds[1], self.bonds[3]):
+        for x in range(bounds[0], bounds[2]):
+            for y in range(bounds[1], bounds[3]):
                 self.chemical_pos[str(x) + str(y)] += amount
 
     def _evaporate(self):
@@ -281,8 +272,8 @@ class Slime(gym.Env):
 
         max_ph = -1
         max_pos = []
-        for x in range(self.bonds[0], self.bonds[2]):
-            for y in range(self.bonds[1], self.bonds[3]):
+        for x in range(bounds[0], bounds[2]):
+            for y in range(bounds[1], bounds[3]):
                 if self.chemical_pos[str(x) + str(y)] > max_ph:
                     max_ph = self.chemical_pos[str(x) + str(y)]
                     max_pos = [x, y]
