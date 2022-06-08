@@ -60,9 +60,9 @@ class Slime(gym.Env):
                  cluster_radius=20,
                  rew=100,
                  penalty=-1,
-                 render_mode: Optional[str] = None,
                  step=5,
-                 grid_size=500):
+                 grid_size=500,
+                 render_mode: Optional[str] = None):
         """
 
         :param population:          Controls the number of non-learning slimes (= green turtles)
@@ -81,9 +81,9 @@ class Slime(gym.Env):
                                     for learning slimes
         :param rew:                 Base reward for being in a cluster
         :param penalty:             Base penalty for not being in a cluster
-        :param render_mode:
         :param step:                How many pixels do turtle move at each movement step
         :param grid_size:           Simulation area is always a square
+        :param render_mode:
         """
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
@@ -165,10 +165,9 @@ class Slime(gym.Env):
                 pass
 
         cur_reward = Slime.rewardfunc7(self)  # <--reward function in uso
+        self.observation = Slime._get_obs(self)
 
         self._evaporate()
-
-        self.observation = Slime._get_obs(self)
 
         return self.observation, cur_reward, False, {}
 
@@ -193,12 +192,6 @@ class Slime(gym.Env):
             for y in range(self.bonds[1], self.bonds[3]):
                 self.chemical_pos[str(x) + str(y)] += amount
 
-    def drop_chemical(self):
-        for x in range(self.bonds[0], self.bonds[2]):
-            for y in range(self.bonds[1], self.bonds[3]):
-                self.chemical_pos[str(x) + str(
-                    y)] += 2  # TODO rendere parametrica la quantità di feromone, come 'chemical-drop' in netlogo
-
     def _evaporate(self):
         for patch in self.chemical_pos:
             if self.chemical_pos[patch] != 0:
@@ -218,16 +211,6 @@ class Slime(gym.Env):
             pos[1] = self.height - 15
         elif pos[1] < 10:
             pos[1] = 15
-
-    def _keep_in_screen(self, turtle):
-        if self.non_learner_pos[turtle][0] > self.width - 10:
-            self.non_learner_pos[turtle][0] = self.width - 15
-        elif self.non_learner_pos[turtle][0] < 10:
-            self.non_learner_pos[turtle][0] = 15
-        if self.non_learner_pos[turtle][1] > self.height - 10:
-            self.non_learner_pos[turtle][1] = self.height - 15
-        elif self.non_learner_pos[turtle][1] < 10:
-            self.non_learner_pos[turtle][1] = 15
 
     def walk(self, pos):
         """
@@ -249,21 +232,6 @@ class Slime(gym.Env):
             pos[0] += self.move_step
             pos[1] -= self.move_step
 
-    def rng_walk(self, turtle):
-        act = np.random.randint(4)
-        if act == 0:
-            self.non_learner_pos[turtle][0] += self.move_step
-            self.non_learner_pos[turtle][1] += self.move_step
-        elif act == 1:
-            self.non_learner_pos[turtle][0] -= self.move_step
-            self.non_learner_pos[turtle][1] -= self.move_step
-        elif act == 2:
-            self.non_learner_pos[turtle][0] -= self.move_step
-            self.non_learner_pos[turtle][1] += self.move_step
-        else:
-            self.non_learner_pos[turtle][0] += self.move_step
-            self.non_learner_pos[turtle][1] -= self.move_step
-
     def follow_pheromone(self, ph_coords, pos):
         """
         Action 2: move turtle towards greatest pheromone found
@@ -271,68 +239,28 @@ class Slime(gym.Env):
         :param pos: the x,y position of the turtle looking for pheromone
         :return: None (pos is updated after movement as side-effec)
         """
-        if ph_coords[0] > pos[0] and ph_coords[1] > pos[1]:  # DOC allora il punto si trova in alto a dx
+        if ph_coords[0] > pos[0] and ph_coords[1] > pos[1]:  # allora il punto si trova in alto a dx
             pos[0] += self.move_step
             pos[1] += self.move_step
-        elif ph_coords[0] < pos[0] and ph_coords[1] < pos[1]:  # DOC allora il punto si trova in basso a sx
+        elif ph_coords[0] < pos[0] and ph_coords[1] < pos[1]:  # allora il punto si trova in basso a sx
             pos[0] -= self.move_step
             pos[1] -= self.move_step
-        elif ph_coords[0] > pos[0] and ph_coords[1] < pos[1]:  # DOC allora il punto si trova in basso a dx
+        elif ph_coords[0] > pos[0] and ph_coords[1] < pos[1]:  # allora il punto si trova in basso a dx
             pos[0] += self.move_step
             pos[1] -= self.move_step
-        elif ph_coords[0] < pos[0] and ph_coords[1] > pos[1]:  # DOC allora il punto si trova in alto a sx
+        elif ph_coords[0] < pos[0] and ph_coords[1] > pos[1]:  # allora il punto si trova in alto a sx
             pos[0] -= self.move_step
             pos[1] += self.move_step
-        elif ph_coords[0] == pos[0] and ph_coords[1] < pos[1]:  # DOC allora il punto si trova in basso sulla mia colonna
+        elif ph_coords[0] == pos[0] and ph_coords[1] < pos[1]:  # allora il punto si trova in basso sulla mia colonna
             pos[1] -= self.move_step
-        elif ph_coords[0] == pos[0] and ph_coords[1] > pos[1]:  # DOC allora il punto si trova in alto sulla mia colonna
+        elif ph_coords[0] == pos[0] and ph_coords[1] > pos[1]:  # allora il punto si trova in alto sulla mia colonna
             pos[1] += self.move_step
-        elif ph_coords[0] > pos[0] and ph_coords[1] == pos[1]:  # DOC allora il punto si trova alla mia dx
+        elif ph_coords[0] > pos[0] and ph_coords[1] == pos[1]:  # allora il punto si trova alla mia dx
             pos[0] += self.move_step
-        elif ph_coords[0] < pos[0] and ph_coords[1] == pos[1]:  # DOC allora il punto si trova alla mia sx
+        elif ph_coords[0] < pos[0] and ph_coords[1] == pos[1]:  # allora il punto si trova alla mia sx
             pos[0] -= self.move_step
         else:
             pass
-
-    def follow_pheromone_old(self, turtle):
-        if self.cord_max_lv[0] > self.non_learner_pos[turtle][0] and self.cord_max_lv[1] > \
-                self.non_learner_pos[turtle][1]:
-            # allora il punto si trova in alto a dx
-            self.non_learner_pos[turtle][0] += self.move_step
-            self.non_learner_pos[turtle][1] += self.move_step
-        elif self.cord_max_lv[0] < self.non_learner_pos[turtle][0] and self.cord_max_lv[1] < \
-                self.non_learner_pos[turtle][1]:
-            # allora il punto si trova in basso a sx
-            self.non_learner_pos[turtle][0] -= self.move_step
-            self.non_learner_pos[turtle][1] -= self.move_step
-        elif self.cord_max_lv[0] > self.non_learner_pos[turtle][0] and self.cord_max_lv[1] < \
-                self.non_learner_pos[turtle][1]:
-            # allora il punto si trova in basso a dx
-            self.non_learner_pos[turtle][0] += self.move_step
-            self.non_learner_pos[turtle][1] -= self.move_step
-        elif self.cord_max_lv[0] < self.non_learner_pos[turtle][0] and self.cord_max_lv[1] > \
-                self.non_learner_pos[turtle][1]:
-            # allora il punto si trova in alto a sx
-            self.non_learner_pos[turtle][0] -= self.move_step
-            self.non_learner_pos[turtle][1] += self.move_step
-        elif self.cord_max_lv[0] == self.non_learner_pos[turtle][0] and self.cord_max_lv[1] < \
-                self.non_learner_pos[turtle][1]:
-            # allora il punto si trova in basso sulla mia colonna
-            self.non_learner_pos[turtle][1] -= self.move_step
-        elif self.cord_max_lv[0] == self.non_learner_pos[turtle][0] and self.cord_max_lv[1] > \
-                self.non_learner_pos[turtle][1]:
-            # allora il punto si trova in alto sulla mia colonna
-            self.non_learner_pos[turtle][1] += self.move_step
-        elif self.cord_max_lv[0] > self.non_learner_pos[turtle][0] and self.cord_max_lv[1] == \
-                self.non_learner_pos[turtle][1]:
-            # allora il punto si trova alla mia dx
-            self.non_learner_pos[turtle][0] += self.move_step
-        elif self.cord_max_lv[0] < self.non_learner_pos[turtle][0] and self.cord_max_lv[1] == \
-                self.non_learner_pos[turtle][1]:
-            # allora il punto si trova alla mia sx
-            self.non_learner_pos[turtle][0] -= self.move_step
-        else:
-            pass  # allora il punto è dove mi trovo quindi stò fermo
 
     def _find_max_pheromone(self, pos, area):
         """
@@ -361,32 +289,9 @@ class Slime(gym.Env):
 
         return max_ph, max_pos
 
-    def _find_max_lv(self, turtle):
-        # DOC raggio entro cui cercare feromone
-        self.bonds.append(self.non_learner_pos[turtle][0] - 3)
-        self.bonds.append(self.non_learner_pos[turtle][1] - 3)
-        self.bonds.append(self.non_learner_pos[turtle][0] + 4)
-        self.bonds.append(self.non_learner_pos[turtle][1] + 4)
-        for i in range(len(self.bonds)):
-            if self.bonds[i] < 0:
-                self.bonds[i] = 0
-            elif self.bonds[i] > self.width:
-                self.bonds[i] = self.width
-        for x in range(self.bonds[0], self.bonds[2]):
-            for y in range(self.bonds[1], self.bonds[3]):  # SCORRO LE "PATCH" NELLE VICINANE CON UN r = 3
-                if self.chemical_pos[str(x) + str(
-                        y)] > self.max_lv:  # CERCO IL MAX VALORE DI FEROMONE NELLE VICINANZE E PRENDO LE SUE COORDINATE
-                    self.max_lv = self.chemical_pos[str(x) + str(y)]
-                    # self.cord_max_lv.clear()
-                    self.cord_max_lv = []
-                    self.cord_max_lv.append(x)
-                    self.cord_max_lv.append(y)
-
     def _get_obs(self):
-        # controllo la presenza di feromone o meno nella patch, da spostare QUESTION perchè "da spostare"?
+        # da spostare QUESTION perchè "da spostare"?
         self._check_chemical()
-
-        # controllo if in cluster
         self._count_cluster()
 
         if self.count_turtle >= self.cluster_threshold:
@@ -459,7 +364,6 @@ class Slime(gym.Env):
         if self.count_turtle >= self.cluster_threshold:
             self.count_ticks_cluster += 1
 
-        # calcolo la reward
         cur_reward = ((self.count_turtle ^ 2) / self.cluster_threshold) * self.reward \
                      + \
                      (((ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode) * self.penalty)
@@ -519,9 +423,19 @@ class Slime(gym.Env):
 #   MAIN
 episodes = 100
 ticks_per_episode = 500
-# consigliabile almeno 500 tick_per_episode, altrimenti difficile vedere fenomeni di aggregazione
 
-env = Slime(sniff_threshold=12, step=5, cluster_threshold=5, population=100, grid_size=500, rew=100, penalty=-1)
+env = Slime(population=650,
+            sniff_threshold=12,
+            smell_area=4,
+            lay_area=4,
+            lay_amount=2,
+            cluster_threshold=5,
+            cluster_radius=20,
+            rew=100,
+            penalty=-1,
+            step=5,
+            grid_size=500,
+            render_mode="human")
 for ep in range(1, episodes+1):
     env.reset()
     print(f"EPISODE: {ep}")
