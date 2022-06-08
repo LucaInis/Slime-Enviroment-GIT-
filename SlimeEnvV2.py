@@ -104,8 +104,8 @@ class Slime(gym.Env):
         self.width = grid_size
         self.height = grid_size
 
-        self.reward_list = []
-        self.count_ticks_cluster = 0    # conta i tick che la turtle passa in un cluster
+        self.rewards = []
+        self.cluster_ticks = 0    # conta i tick che la turtle passa in un cluster
 
         self.first_gui = True
 
@@ -153,6 +153,7 @@ class Slime(gym.Env):
                 self.follow_pheromone(max_coords, self.learner_pos)
             else:
                 pass  # TODO check
+            self._wrap(self.non_learner_pos[turtle])
 
         cur_reward = self.rewardfunc7()
         self.observation = self._get_obs()
@@ -176,10 +177,10 @@ class Slime(gym.Env):
 
     def _get_bounds(self, area, pos):
         """
-
-        :param area:
-        :param pos:
-        :return:
+        Computes x,y bounds of a square area big as 'area' centred in 'pos'
+        :param area: the size of the square area
+        :param pos: the x,y centre of the area
+        :return: the x,y of the bounds of the area (list with 4 elements [minx, miny, maxx, maxy])
         """
         bounds = [pos[0] - area // 2,  # DOC min x
                   pos[1] - area // 2,  # DOC min y
@@ -260,11 +261,11 @@ class Slime(gym.Env):
         elif ph_coords[0] < pos[0] and ph_coords[1] == pos[1]:  # allora il punto si trova alla mia sx
             pos[0] -= self.move_step
         else:
-            pass
+            pass  # TODO check
 
     def _find_max_pheromone(self, pos, area):
         """
-
+        Find where the maximum pheromone level is within square 'area' centred in 'pos'
         :param pos: the x,y position of the turtle looking for pheromone
         :param area: the square area where to look within
         :return: the maximum pheromone level found and its x,y position
@@ -283,19 +284,19 @@ class Slime(gym.Env):
 
     def _get_obs(self):
         """
-
-        :return:
+        Get environment observations
+        :return: the environment observations
         """
-        self.observation[0] = self._check_cluster() >= self.cluster_threshold
+        self.observation[0] = self._check_cluster()
         # da spostare QUESTION perchè "da spostare"?
         self.observation[1] = self._check_chemical()
 
-        return self.observation
+        return self.observation   # FIXME di fatto non usi lo spazio in questo modo
 
     def _check_cluster(self):
         """
-
-        :return:
+        Checks whether the learner turtle is within a cluster, given 'cluster_radius' and 'cluster_threshold'
+        :return: a boolean
         """
         cluster = 1
         area = []
@@ -305,12 +306,12 @@ class Slime(gym.Env):
         for pair in self.non_learner_pos.values():
             if pair in area:
                 cluster += 1
-        return cluster
+        return cluster >= self.cluster_threshold
 
     def _check_chemical(self):
         """
-
-        :return:
+        Checks whether there is pheromone on the patch where the learner turtle is
+        :return: a boolean
         """
         return self.chemical_pos[str(self.learner_pos[0]) + str(self.learner_pos[1])] > 0
 
@@ -324,13 +325,13 @@ class Slime(gym.Env):
             if pair in self.check_cord:
                 self.count_turtle += 1
         if self.count_turtle >= self.cluster_threshold:
-            self.count_ticks_cluster += 1
+            self.cluster_ticks += 1
             self.reward = 2
-            self.reward_list.append(2)   # se la mia turtle è in un cluster gli assegno una reward
+            self.rewards.append(2)   # se la mia turtle è in un cluster gli assegno una reward
         else:
-            self.count_ticks_cluster = 0
+            self.cluster_ticks = 0
             self.reward = -2
-            self.reward_list.append(-0.2)  # se la mia turtle NON è in un cluster gli assegno una penalty
+            self.rewards.append(-0.2)  # se la mia turtle NON è in un cluster gli assegno una penalty
 
         return self.reward
 
@@ -344,13 +345,13 @@ class Slime(gym.Env):
             if pair in self.check_cord:
                 self.count_turtle += 1
         if self.count_turtle >= self.cluster_threshold:
-            self.count_ticks_cluster += 1
+            self.cluster_ticks += 1
         else:
-            self.count_ticks_cluster = 0
-        if self.count_ticks_cluster > 1:
-            self.reward_list.append(self.count_ticks_cluster)  # monotonic reward based on ticks in cluster
+            self.cluster_ticks = 0
+        if self.cluster_ticks > 1:
+            self.rewards.append(self.cluster_ticks)  # monotonic reward based on ticks in cluster
 
-        return self.count_ticks_cluster
+        return self.cluster_ticks
 
     def rewardfunc7(self):
         """
@@ -359,39 +360,35 @@ class Slime(gym.Env):
         """
         cluster = self._check_cluster()
         if cluster >= self.cluster_threshold:
-            self.count_ticks_cluster += 1
+            self.cluster_ticks += 1
 
         cur_reward = ((cluster ^ 2) / self.cluster_threshold) * self.reward \
                      + \
-                     (((ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode) * self.penalty)
+                     (((EPISODE_TICKS - self.cluster_ticks) / EPISODE_TICKS) * self.penalty)
 
-        self.reward_list.append(cur_reward)
+        self.rewards.append(cur_reward)
         return cur_reward
 
     def reset(self):
-        self.reward_list = []
+        # empty stuff
+        self.rewards = []
         self.observation = [False, False]
-        self.count_ticks_cluster = 0
+        self.cluster_ticks = 0
 
-        # create learner turtle
-        self.learner_pos = []
-        self.learner_pos.append(np.random.randint(10, self.width - 10))
-        self.learner_pos.append(np.random.randint(10, self.height - 10))
+        # re-position learner turtle
+        self.learner_pos = [np.random.randint(10, self.width-10) for _ in range(2)]
 
-        # create NON learner turtle
+        # re-position NON learner turtles
         self.non_learner_pos = {}
         for p in range(self.population):
-            self.l = []
-            self.l.append(np.random.randint(10, self.width - 10))
-            self.l.append(np.random.randint(10, self.height - 10))
-            self.non_learner_pos[str(p)] = self.l
+            self.non_learner_pos[str(p)] = [np.random.randint(10, self.width - 10) for _ in range(2)]
 
         # patches-own [chemical] - amount of pheromone in the patch
         self.chemical_pos = {}
         for x in range(self.width + 1):
             for y in range(self.height + 1):
                 self.chemical_pos[str(x) + str(y)] = 0
-        return self.observation, 0, False, {}  # NB check if 0 makes sense
+        return self.observation, 0, False, {}  # TODO check if 0 makes sense
 
     def render(self, **kwargs):
         if self.first_gui:
@@ -418,25 +415,25 @@ class Slime(gym.Env):
 
 
 #   MAIN
-episodes = 100
-ticks_per_episode = 500
+EPISODES = 100
+EPISODE_TICKS = 500
 
-env = Slime(population=650,
-            sniff_threshold=12,
-            smell_area=4,
-            lay_area=4,
-            lay_amount=2,
-            cluster_threshold=5,
+env = Slime(population=100,
+            sniff_threshold=5,
+            smell_area=10,
+            lay_area=5,
+            lay_amount=5,
+            cluster_threshold=10,
             cluster_radius=20,
             rew=100,
             penalty=-1,
-            step=5,
+            step=1,
             grid_size=500,
             render_mode="human")
-for ep in range(1, episodes+1):
+for ep in range(1, EPISODES + 1):
     env.reset()
     print(f"EPISODE: {ep}")
-    for tick in range(ticks_per_episode):
+    for tick in range(EPISODE_TICKS):
         observation, reward, done, info = env.step(env.action_space.sample())
         # if tick % 2 == 0:
         print(observation, reward)
