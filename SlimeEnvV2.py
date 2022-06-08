@@ -238,7 +238,7 @@ class Slime(gym.Env):
         Action 2: move turtle towards greatest pheromone found
         :param ph_coords: the position where max pheromone has been sensed
         :param pos: the x,y position of the turtle looking for pheromone
-        :return: None (pos is updated after movement as side-effec)
+        :return: None (pos is updated after movement as side-effect)
         """
         if ph_coords[0] > pos[0] and ph_coords[1] > pos[1]:  # allora il punto si trova in alto a dx
             pos[0] += self.move_step
@@ -415,19 +415,19 @@ class Slime(gym.Env):
 
 
 #   MAIN
-EPISODES = 100
-EPISODE_TICKS = 500
+EPISODES = 5
+EPISODE_TICKS = 250
 
 env = Slime(population=100,
-            sniff_threshold=5,
+            sniff_threshold=3,
             smell_area=10,
             lay_area=5,
-            lay_amount=5,
-            cluster_threshold=10,
+            lay_amount=1,
+            cluster_threshold=20,
             cluster_radius=20,
             rew=100,
             penalty=-1,
-            step=1,
+            step=3,
             grid_size=500,
             render_mode="human")
 for ep in range(1, EPISODES + 1):
