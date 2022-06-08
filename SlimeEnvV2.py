@@ -60,6 +60,7 @@ class Slime(gym.Env):
                  smell_area=10,
                  lay_area=5,
                  lay_amount=1,
+                 evaporation=0.1,
                  cluster_threshold=20,
                  cluster_radius=20,
                  rew=100,
@@ -75,6 +76,7 @@ class Slime(gym.Env):
         :param smell_area:          Controls the square area sorrounding the turtle whithin which it smells pheromone
         :param lay_area:            Controls the square area sorrounding the turtle where pheromone is laid
         :param lay_amount:          Controls how much pheromone is laid
+        :param evaporation:         Controls how much pheromone evaporates at each step
         :param cluster_threshold:   Controls the minimum number of slimes needed to consider an aggregate within
                                     cluster-radius a cluster (the higher the more difficult to consider an aggregate a
                                     cluster)—the higher the more difficult to obtain a positive reward for being within
@@ -97,6 +99,7 @@ class Slime(gym.Env):
         self.smell_area = smell_area
         self.lay_area = lay_area
         self.lay_amount = lay_amount
+        self.evaporation = evaporation
         self.cluster_threshold = cluster_threshold
         self.cluster_radius = cluster_radius
         self.reward = rew
@@ -161,6 +164,7 @@ class Slime(gym.Env):
         cur_reward = self.rewardfunc7()
         self.observation = self._get_obs()
 
+        self._diffuse()
         self._evaporate()
 
         return self.observation, cur_reward, False, {}
@@ -196,10 +200,41 @@ class Slime(gym.Env):
                 bounds[i] = self.width
         return bounds
 
-    def _evaporate(self):
+    def _diffuse(self):
         for patch in self.chemical_pos:
-            if self.chemical_pos[patch] != 0:
-                self.chemical_pos[patch] -= 2  # TODO rendere parametrico come 'evaporation-rate' in netlogo
+            if self.chemical_pos[patch] > 0:
+                neighbours = self.adj_finder(patch)
+
+    def adj_finder(self, position, distance=1):
+        """
+        Generate adjacent cells within 'distance' to 'position' in every direction (diagonal included) that are legit,
+        that is, that do not extend beyond grid size and that are not the reference 'position'
+        :param position:
+        :param distance:
+        :return:
+        """
+        adj = []
+
+        for dx in range(0-distance, 1+distance):
+            for dy in range(0-distance, 1+distance):
+                range_x = range(0, self.width+1)  # X bounds
+                range_y = range(0, self.height+1)  # Y bounds
+
+                (new_x, new_y) = (position[0] + dx, position[1] + dy)  # adjacent cell
+
+                if (new_x in range_x) and (new_y in range_y) and (dx, dy) != (0, 0):
+                    adj.append((new_x, new_y))
+
+        return adj
+
+    def _evaporate(self):
+        """
+
+        :return:
+        """
+        for patch in self.chemical_pos:
+            if self.chemical_pos[patch] > 0:
+                self.chemical_pos[patch] -= self.evaporation
 
     def _wrap(self, pos):
         """
@@ -426,6 +461,7 @@ env = Slime(population=100,
             smell_area=10,
             lay_area=5,
             lay_amount=1,
+            evaporation=0.1,
             cluster_threshold=20,
             cluster_radius=20,
             rew=100,
