@@ -133,7 +133,7 @@ class Slime(gym.Env):
         for turtle in self.non_learner_pos:
             max_pheromone, max_coords = self._find_max_pheromone(self.non_learner_pos[turtle], self.smell_area)
 
-            if max_pheromone > self.sniff_threshold:
+            if max_pheromone >= self.sniff_threshold:
                 self.follow_pheromone(max_coords, self.non_learner_pos[turtle])
             else:
                 self.walk(self.non_learner_pos[turtle])
@@ -149,11 +149,11 @@ class Slime(gym.Env):
             self.lay_pheromone(self.learner_pos, self.lay_area, self.lay_amount)
         elif action == 2:  # DOC follow_pheromone
             max_pheromone, max_coords = self._find_max_pheromone(self.learner_pos, self.smell_area)
-            if max_pheromone > self.sniff_threshold:
+            if max_pheromone >= self.sniff_threshold:
                 self.follow_pheromone(max_coords, self.learner_pos)
             else:
                 pass  # TODO check
-            self._wrap(self.non_learner_pos[turtle])
+            self._wrap(self.learner_pos)
 
         cur_reward = self.rewardfunc7()
         self.observation = self._get_obs()
