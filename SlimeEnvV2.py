@@ -143,6 +143,7 @@ class Slime(gym.Env):
                 self.follow_pheromone(max_coords, self.non_learner_pos[turtle])
             else:
                 self.walk(self.non_learner_pos[turtle])
+            #self.walk(self.non_learner_pos[turtle])
 
             self.lay_pheromone(self.non_learner_pos[turtle], self.lay_area, self.lay_amount)
             self._wrap(self.non_learner_pos[turtle])
