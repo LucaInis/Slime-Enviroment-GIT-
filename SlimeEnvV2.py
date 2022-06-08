@@ -55,16 +55,17 @@ class Slime(gym.Env):
     metadata = {"render_modes": "human", "render_fps": 30}
 
     def __init__(self,
-                 population=650,
-                 sniff_threshold=12,
-                 smell_area=4,
-                 lay_area=4,
-                 lay_amount=2,
-                 cluster_threshold=5,
+                 population=100,
+                 sniff_threshold=3,
+                 smell_area=10,
+                 lay_area=5,
+                 lay_amount=1,
+                 cluster_threshold=20,
                  cluster_radius=20,
                  rew=100,
                  penalty=-1,
-                 step=5,
+                 episode_ticks=500,
+                 step=3,
                  grid_size=500,
                  render_mode: Optional[str] = None):
         """
@@ -84,6 +85,7 @@ class Slime(gym.Env):
                                     for learning slimes
         :param rew:                 Base reward for being in a cluster
         :param penalty:             Base penalty for not being in a cluster
+        :param episode_ticks:       Number of ticks for episode termination
         :param step:                How many pixels do turtle move at each movement step
         :param grid_size:           Simulation area is always a square
         :param render_mode:
@@ -99,6 +101,7 @@ class Slime(gym.Env):
         self.cluster_radius = cluster_radius
         self.reward = rew
         self.penalty = penalty
+        self.episode_ticks = episode_ticks
 
         self.move_step = step
         self.width = grid_size
@@ -364,7 +367,7 @@ class Slime(gym.Env):
 
         cur_reward = ((cluster ^ 2) / self.cluster_threshold) * self.reward \
                      + \
-                     (((EPISODE_TICKS - self.cluster_ticks) / EPISODE_TICKS) * self.penalty)
+                     (((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
 
         self.rewards.append(cur_reward)
         return cur_reward
@@ -416,7 +419,7 @@ class Slime(gym.Env):
 
 #   MAIN
 EPISODES = 5
-EPISODE_TICKS = 250
+EPISODE_TICKS = 500
 
 env = Slime(population=100,
             sniff_threshold=3,
@@ -427,6 +430,7 @@ env = Slime(population=100,
             cluster_radius=20,
             rew=100,
             penalty=-1,
+            episode_ticks=EPISODE_TICKS,
             step=3,
             grid_size=500,
             render_mode="human")
