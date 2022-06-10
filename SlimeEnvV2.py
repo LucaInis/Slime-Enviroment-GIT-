@@ -179,9 +179,12 @@ class Slime(gym.Env):
         :return: None (environment properties are changed as side effect)
         """
         bounds = self._get_bounds(area, pos)
-        for x in range(bounds[0], bounds[2]):
-            for y in range(bounds[1], bounds[3]):
+        #print("{", pos, bounds)
+        for x in range(bounds[0], bounds[2]+1):
+            for y in range(bounds[1], bounds[3]+1):
+                #print(f"  {x},{y}: {self.chemical_pos[(x,y)]}")
                 self.chemical_pos[(x, y)] += amount
+        #print("}")
 
     def _get_bounds(self, area, pos):
         """
@@ -202,12 +205,23 @@ class Slime(gym.Env):
         return bounds
 
     def _diffuse(self):
+        diffused = []
         for patch in self.chemical_pos:
-            if self.chemical_pos[patch] > 0:
+            #print(patch)
+            if patch not in diffused and self.chemical_pos[patch] > 0:
+                diffused.append(patch)
                 neighbours = self.adj_finder(patch)
                 for pos in neighbours:
-                    self.chemical_pos[pos] += self.chemical_pos[patch] * 1 / (len(neighbours) + 1)
+                    self.chemical_pos[pos] += self.chemical_pos[patch] / (len(neighbours) + 1)
+                    #self._diffuse_again(pos)
                 self.chemical_pos[patch] = 1 / (len(neighbours) + 1)
+
+    def _diffuse_again(self, who):
+        if self.chemical_pos[who] > 0:
+            neighbours = self.adj_finder(who)
+            for pos in neighbours:
+                self.chemical_pos[pos] += self.chemical_pos[who] / (len(neighbours) + 1)
+            self.chemical_pos[who] = 1 / (len(neighbours) + 1)
 
     def adj_finder(self, position, distance=1):
         """
@@ -457,14 +471,14 @@ class Slime(gym.Env):
 
 
 #   MAIN
-EPISODES = 5
-EPISODE_TICKS = 500
+EPISODES = 1
+EPISODE_TICKS = 250
 LOG_EVERY = 100
 
-env = Slime(population=100,
+env = Slime(population=10,
             sniff_threshold=1,
-            smell_area=2,
-            lay_area=1,
+            smell_area=1,
+            lay_area=2,
             lay_amount=3,
             evaporation=0.9,
             cluster_threshold=20,
@@ -473,7 +487,7 @@ env = Slime(population=100,
             penalty=-1,
             episode_ticks=EPISODE_TICKS,
             step=1,
-            grid_size=250,
+            grid_size=50,
             render_mode="human")
 for ep in range(1, EPISODES + 1):
     env.reset()
