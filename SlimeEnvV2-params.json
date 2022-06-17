@@ -1,12 +1,15 @@
-{"population":100,
-            "sniff_threshold":3,
-            "smell_area":10,
-            "lay_area":5,
-            "lay_amount":1,
-            "cluster_threshold":20,
-            "cluster_radius":20,
-            "rew":100,
-            "penalty":-1,
-            "step":3,
-            "grid_size":500,
-            "render_mode":"human"}
+{
+  "population": 50,
+  "sniff_threshold": 1,
+  "smell_area": 1,
+  "lay_area": 1,
+  "lay_amount": 1,
+  "evaporation": 0.9,
+  "cluster_threshold": 20,
+  "cluster_radius": 10,
+  "rew": 100,
+  "penalty": -1,
+  "episode_ticks": 500,
+  "step": 1,
+  "grid_size": 250
+}

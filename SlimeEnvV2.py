@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 import gym
@@ -8,7 +9,7 @@ import numpy as np
 import random
 
 
-class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dimensional space of N boolean values
+class BooleanSpace(gym.Space):  #  TODO improve implementation: should be a N-dimensional space of N boolean values
     def __init__(self, size=None):
         """
         A space of boolean values
@@ -24,7 +25,7 @@ class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-di
 
     def sample(self):
         return [random.choice([True, False]) for _ in range(self.size)]
-        #return self.values
+        # return self.values
 
     def observe(self):
         """
@@ -42,7 +43,7 @@ class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-di
         """
         self.values[p] = value
 
-    def change(self, values):
+    def change_all(self, values):
         """
         Set all the boolean values for the current observation
         :param values: the boolean values to set
@@ -55,20 +56,8 @@ class Slime(gym.Env):
     metadata = {"render_modes": "human", "render_fps": 30}
 
     def __init__(self,
-                 population=100,
-                 sniff_threshold=1,
-                 smell_area=2,
-                 lay_area=1,
-                 lay_amount=3,
-                 evaporation=0.9,
-                 cluster_threshold=20,
-                 cluster_radius=10,
-                 rew=100,
-                 penalty=-1,
-                 episode_ticks=500,
-                 step=1,
-                 grid_size=250,
-                 render_mode: Optional[str] = None):
+                 render_mode: Optional[str] = None,
+                 **kwargs):
         """
         :param population:          Controls the number of non-learning slimes (= green turtles)
         :param sniff_threshold:     Controls how sensitive slimes are to pheromone (higher values make slimes less
@@ -94,33 +83,37 @@ class Slime(gym.Env):
         """
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
-        self.population = population
-        self.sniff_threshold = sniff_threshold
-        self.smell_area = smell_area
-        self.lay_area = lay_area
-        self.lay_amount = lay_amount
-        self.evaporation = evaporation
-        self.cluster_threshold = cluster_threshold
-        self.cluster_radius = cluster_radius
-        self.reward = rew
-        self.penalty = penalty
-        self.episode_ticks = episode_ticks
+        self.population = kwargs['population']
+        self.sniff_threshold = kwargs['sniff_threshold']
+        self.smell_area = kwargs['smell_area']
+        self.lay_area = kwargs['lay_area']
+        self.lay_amount = kwargs['lay_amount']
+        self.evaporation = kwargs['evaporation']
+        self.cluster_threshold = kwargs['cluster_threshold']
+        self.cluster_radius = kwargs['cluster_radius']
+        self.reward = kwargs['rew']
+        self.penalty = kwargs['penalty']
+        self.episode_ticks = kwargs['episode_ticks']
 
-        self.move_step = step
-        self.width = grid_size
-        self.height = grid_size
+        self.move_step = kwargs['step']
+        self.width = kwargs['grid_size']
+        self.height = kwargs['grid_size']
+
+        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.clock = pygame.time.Clock()
 
         self.rewards = []
-        self.cluster_ticks = 0    # conta i tick che la turtle passa in un cluster
+        self.cluster_ticks = 0  # conta i tick che la turtle passa in un cluster
 
         self.first_gui = True
 
         # create learner turtle
-        self.learner_pos = [np.random.randint(10, self.width-10) for _ in range(2)]  # QUESTION +10 / -10 è per non mettere turtles troppo vicine al bordo?
+        self.learner_pos = [np.random.randint(10, self.width - 10) for _ in
+                            range(2)]  # QUESTION +10 / -10 è per non mettere turtles troppo vicine al bordo?
         # create NON learner turtles
         self.non_learner_pos = {}
         for p in range(self.population):
-            self.non_learner_pos[str(p)] = [np.random.randint(10, self.width-10) for _ in range(2)]
+            self.non_learner_pos[str(p)] = [np.random.randint(10, self.width - 10) for _ in range(2)]
 
         # patches-own [chemical] - amount of pheromone in each patch
         self.chemical_pos = {}
@@ -128,10 +121,10 @@ class Slime(gym.Env):
             for y in range(self.height + 1):
                 self.chemical_pos[(x, y)] = 0.0
 
-        self.action_space = spaces.Discrete(3)          # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
-        self.observation_space = BooleanSpace(size=2)   # DOC [0] = whether the turtle is in a cluster
-                                                        # DOC [1] = whether there is chemical in turtle patch
-        self.observation = [False, False]   # FIXME di fatto non usi lo spazio in questo modo
+        self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
+        self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster
+        # DOC [1] = whether there is chemical in turtle patch
+        self.observation = [False, False]  # FIXME di fatto non usi lo spazio in questo modo
 
     def step(self, action: int):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
@@ -143,7 +136,7 @@ class Slime(gym.Env):
                 self.follow_pheromone(max_coords, self.non_learner_pos[turtle])
             else:
                 self.walk(self.non_learner_pos[turtle])
-            #self.walk(self.non_learner_pos[turtle])
+            # self.walk(self.non_learner_pos[turtle])
 
             self.lay_pheromone(self.non_learner_pos[turtle], self.lay_area, self.lay_amount)
             self._wrap(self.non_learner_pos[turtle])
@@ -165,7 +158,7 @@ class Slime(gym.Env):
         cur_reward = self.rewardfunc7()
         self.observation = self._get_obs()
 
-        self._diffuse()
+        # self._diffuse()
         self._evaporate()
 
         return self.observation, cur_reward, False, {}
@@ -179,12 +172,12 @@ class Slime(gym.Env):
         :return: None (environment properties are changed as side effect)
         """
         bounds = self._get_bounds(area, pos)
-        #print("{", pos, bounds)
-        for x in range(bounds[0], bounds[2]+1):
-            for y in range(bounds[1], bounds[3]+1):
-                #print(f"  {x},{y}: {self.chemical_pos[(x,y)]}")
+        # print("{", pos, bounds)
+        for x in range(bounds[0], bounds[2] + 1):
+            for y in range(bounds[1], bounds[3] + 1):
+                # print(f"  {x},{y}: {self.chemical_pos[(x,y)]}")
                 self.chemical_pos[(x, y)] += amount
-        #print("}")
+        # print("}")
 
     def _get_bounds(self, area, pos):
         """
@@ -207,13 +200,13 @@ class Slime(gym.Env):
     def _diffuse(self):
         diffused = []
         for patch in self.chemical_pos:
-            #print(patch)
+            # print(patch)
             if patch not in diffused and self.chemical_pos[patch] > 0:
                 diffused.append(patch)
                 neighbours = self.adj_finder(patch)
                 for pos in neighbours:
                     self.chemical_pos[pos] += self.chemical_pos[patch] / (len(neighbours) + 1)
-                    #self._diffuse_again(pos)
+                    # self._diffuse_again(pos)
                 self.chemical_pos[patch] = 1 / (len(neighbours) + 1)
 
     def _diffuse_again(self, who):
@@ -233,10 +226,10 @@ class Slime(gym.Env):
         """
         adj = []
 
-        for dx in range(0-distance, 1+distance):
-            for dy in range(0-distance, 1+distance):
-                range_x = range(0, self.width+1)  # X bounds
-                range_y = range(0, self.height+1)  # Y bounds
+        for dx in range(0 - distance, 1 + distance):
+            for dy in range(0 - distance, 1 + distance):
+                range_x = range(0, self.width + 1)  # X bounds
+                range_y = range(0, self.height + 1)  # Y bounds
 
                 (new_x, new_y) = (position[0] + dx, position[1] + dy)  # adjacent cell
 
@@ -260,7 +253,7 @@ class Slime(gym.Env):
         :param pos:
         :return:
         """
-        if pos[0] > self.width - 10:  # QUESTION qual è il criterio per questi due numeri?
+        if pos[0] > self.width - 10:  #  QUESTION qual è il criterio per questi due numeri?
             pos[0] = self.width - 15
         elif pos[0] < 10:
             pos[0] = 15
@@ -347,7 +340,7 @@ class Slime(gym.Env):
         # da spostare QUESTION perchè "da spostare"?
         self.observation[1] = self._check_chemical()
 
-        return self.observation   # FIXME di fatto non usi lo spazio in questo modo
+        return self.observation  # FIXME di fatto non usi lo spazio in questo modo
 
     def _check_cluster(self):
         """
@@ -357,7 +350,8 @@ class Slime(gym.Env):
         cluster = 1
         area = []
         for x in range(self.learner_pos[0] - self.cluster_radius // 2, self.learner_pos[0] + self.cluster_radius // 2):
-            for y in range(self.learner_pos[1] - self.cluster_radius // 2, self.learner_pos[1] + self.cluster_radius // 2):
+            for y in range(self.learner_pos[1] - self.cluster_radius // 2,
+                           self.learner_pos[1] + self.cluster_radius // 2):
                 area.append([x, y])
         for pair in self.non_learner_pos.values():
             if pair in area:
@@ -371,56 +365,18 @@ class Slime(gym.Env):
         """
         return self.chemical_pos[(self.learner_pos[0], self.learner_pos[1])] > 0
 
-    def rewardfunc1(self):
-        self.count_turtle = 1
-        self.check_cord = []
-        for x in range(self.learner_pos[0] - 9, self.learner_pos[0] + 10):
-            for y in range(self.learner_pos[1] - 9, self.learner_pos[1] + 10):
-                self.check_cord.append([x, y])
-        for pair in self.non_learner_pos.values():
-            if pair in self.check_cord:
-                self.count_turtle += 1
-        if self.count_turtle >= self.cluster_threshold:
-            self.cluster_ticks += 1
-            self.reward = 2
-            self.rewards.append(2)   # se la mia turtle è in un cluster gli assegno una reward
-        else:
-            self.cluster_ticks = 0
-            self.reward = -2
-            self.rewards.append(-0.2)  # se la mia turtle NON è in un cluster gli assegno una penalty
-
-        return self.reward
-
-    def rewardfunc2(self):
-        self.count_turtle = 1
-        self.check_cord = []
-        for x in range(coordinate[0] - 9, coordinate[0] + 10):
-            for y in range(coordinate[1] - 9, coordinate[1] + 10):
-                self.check_cord.append([x, y])
-        for pair in self.non_learner_pos.values():
-            if pair in self.check_cord:
-                self.count_turtle += 1
-        if self.count_turtle >= self.cluster_threshold:
-            self.cluster_ticks += 1
-        else:
-            self.cluster_ticks = 0
-        if self.cluster_ticks > 1:
-            self.rewards.append(self.cluster_ticks)  # monotonic reward based on ticks in cluster
-
-        return self.cluster_ticks
-
     def rewardfunc7(self):
         """
-        Reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside clusters
+        Reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside
+        clusters
         :return: the reward
         """
         cluster = self._check_cluster()
         if cluster >= self.cluster_threshold:
             self.cluster_ticks += 1
 
-        cur_reward = ((cluster ^ 2) / self.cluster_threshold) * self.reward \
-                     + \
-                     (((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
+        cur_reward = ((cluster ^ 2) / self.cluster_threshold) * self.reward + (
+                    ((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
 
         self.rewards.append(cur_reward)
         return cur_reward
@@ -432,7 +388,7 @@ class Slime(gym.Env):
         self.cluster_ticks = 0
 
         # re-position learner turtle
-        self.learner_pos = [np.random.randint(10, self.width-10) for _ in range(2)]
+        self.learner_pos = [np.random.randint(10, self.width - 10) for _ in range(2)]
 
         # re-position NON learner turtles
         self.non_learner_pos = {}
@@ -444,17 +400,14 @@ class Slime(gym.Env):
         for x in range(self.width + 1):
             for y in range(self.height + 1):
                 self.chemical_pos[(x, y)] = 0
-        return self.observation, 0, False, {}  # TODO check if 0 makes sense
+        return self.observation, 0, False, {}  #  TODO check if 0 makes sense
 
     def render(self, **kwargs):
         if self.first_gui:
             self.first_gui = False
             pygame.init()
-            self.screen = pygame.display.set_mode((self.width, self.height))
             pygame.display.set_caption("SLIME")
-            self.clock = pygame.time.Clock()
         self.screen.fill((0, 0, 0))
-        #self.clock = pygame.time.Clock()
         self.clock.tick(self.metadata["render_fps"])
 
         # Disegno LA turtle learner!
@@ -471,28 +424,17 @@ class Slime(gym.Env):
 
 
 #   MAIN
+PARAMS_FILE = "SlimeEnvV2-params.json"
 EPISODES = 1
-EPISODE_TICKS = 250
 LOG_EVERY = 100
 
-env = Slime(population=10,
-            sniff_threshold=1,
-            smell_area=1,
-            lay_area=2,
-            lay_amount=3,
-            evaporation=0.9,
-            cluster_threshold=20,
-            cluster_radius=10,
-            rew=100,
-            penalty=-1,
-            episode_ticks=EPISODE_TICKS,
-            step=1,
-            grid_size=50,
-            render_mode="human")
+with open(PARAMS_FILE) as f:
+    params = json.load(f)
+env = Slime(render_mode="human", **params)
 for ep in range(1, EPISODES + 1):
     env.reset()
     print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
-    for tick in range(EPISODE_TICKS):
+    for tick in range(params['episode_ticks']):
         observation, reward, done, info = env.step(env.action_space.sample())
         if tick % LOG_EVERY == 0:
             print(f"{tick}: {observation}, {reward}")

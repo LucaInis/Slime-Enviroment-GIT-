@@ -347,7 +347,7 @@ for tick in range(1000):
     next_state, reward, done, info = env.moving_turtle(action)
     next_state = sum(next_state)
 
-    old_value = q_table[state, action]
+    old_value = q_table[state, action]  # (0,0) == (false, false)
     next_max = np.max(q_table[next_state])
 
     new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
