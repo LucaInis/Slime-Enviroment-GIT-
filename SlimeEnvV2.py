@@ -124,7 +124,6 @@ class Slime(gym.Env):
         self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster
         # DOC [1] = whether there is chemical in turtle patch
-        self.observation = [False, False]  # FIXME di fatto non usi lo spazio in questo modo
 
     def step(self, action: int):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
@@ -156,12 +155,12 @@ class Slime(gym.Env):
             self._wrap(self.learner_pos)
 
         cur_reward = self.rewardfunc7()
-        self.observation = self._get_obs()
+        self.observation_space.change_all([self._check_cluster(), self._check_chemical()])
 
         # self._diffuse()
         self._evaporate()
 
-        return self.observation, cur_reward, False, {}
+        return self.observation_space.observe(), cur_reward, False, {}
 
     def lay_pheromone(self, pos, area, amount):
         """
@@ -331,17 +330,6 @@ class Slime(gym.Env):
 
         return max_ph, max_pos
 
-    def _get_obs(self):
-        """
-        Get environment observations
-        :return: the environment observations
-        """
-        self.observation[0] = self._check_cluster()
-        # da spostare QUESTION perchè "da spostare"?
-        self.observation[1] = self._check_chemical()
-
-        return self.observation  # FIXME di fatto non usi lo spazio in questo modo
-
     def _check_cluster(self):
         """
         Checks whether the learner turtle is within a cluster, given 'cluster_radius' and 'cluster_threshold'
@@ -384,7 +372,7 @@ class Slime(gym.Env):
     def reset(self):
         # empty stuff
         self.rewards = []
-        self.observation = [False, False]
+        self.observation_space.change_all([False, False])
         self.cluster_ticks = 0
 
         # re-position learner turtle
@@ -400,7 +388,7 @@ class Slime(gym.Env):
         for x in range(self.width + 1):
             for y in range(self.height + 1):
                 self.chemical_pos[(x, y)] = 0
-        return self.observation, 0, False, {}  # TODO check if 0 makes sense
+        return self.observation_space.observe(), 0, False, {}  # TODO check if 0 makes sense
 
     def render(self, **kwargs):
         for event in pygame.event.get():
