@@ -253,7 +253,7 @@ class Slime(gym.Env):
         :param pos:
         :return:
         """
-        if pos[0] > self.width - 10:  #  QUESTION qual è il criterio per questi due numeri?
+        if pos[0] > self.width - 10:  # QUESTION qual è il criterio per questi due numeri?
             pos[0] = self.width - 15
         elif pos[0] < 10:
             pos[0] = 15
@@ -400,7 +400,7 @@ class Slime(gym.Env):
         for x in range(self.width + 1):
             for y in range(self.height + 1):
                 self.chemical_pos[(x, y)] = 0
-        return self.observation, 0, False, {}  #  TODO check if 0 makes sense
+        return self.observation, 0, False, {}  # TODO check if 0 makes sense
 
     def render(self, **kwargs):
         if self.first_gui:
