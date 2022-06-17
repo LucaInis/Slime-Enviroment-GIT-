@@ -6,7 +6,7 @@ pygame.init()
 W = 50  # in number of patches
 H = 25  # in number of patches
 PATCH_SIZE = 20  # thus window width and height are W * PATCH_SIZE and H * PATCH_SIZE
-TURTLE_SIZE = PATCH_SIZE-1  # turtles must be slightly smaller
+TURTLE_SIZE = PATCH_SIZE - 1  # turtles must be slightly smaller
 
 N_TURTLES = 10
 
@@ -22,8 +22,8 @@ coords = []
 offset = PATCH_SIZE // 2
 W_pixels = W * PATCH_SIZE
 H_pixels = H * PATCH_SIZE
-for x in range(offset, (W_pixels - offset)+1, PATCH_SIZE):
-    for y in range(offset, (H_pixels - offset)+1, PATCH_SIZE):
+for x in range(offset, (W_pixels - offset) + 1, PATCH_SIZE):
+    for y in range(offset, (H_pixels - offset) + 1, PATCH_SIZE):
         coords.append((x, y))  # "centre" of the patch or turtle (also ID of the patch)
 
 # nel dizionario associato alle coordinate x,y della patch puoi mettere i dati che vuoi, come
@@ -46,18 +46,20 @@ while playing:
             playing = False
     screen.fill(BLACK)
     if SHOW_TURTLES:
-        #print("turtles:", end=" ")
-        for t in turtles:  # una per patch
-            #print(t, end=" ")
-            pygame.draw.circle(screen, BLUE, turtles[t]["pos"], TURTLE_SIZE // 2)  # ultimo parametro è il raggio del cerchio
-        #print()
+        # print("turtles:", end=" ")
+        for t in turtles:  #  una per patch
+            # print(t, end=" ")
+            pygame.draw.circle(screen, BLUE, turtles[t]["pos"],
+                               TURTLE_SIZE // 2)  # ultimo parametro è il raggio del cerchio
+        # print()
     if SHOW_PATCHES:
         # mostra le patch come quadrati
-        #print("patches:", end=" ")
+        # print("patches:", end=" ")
         for p in patches:
-            #print(patches[p]["id"], end=" ")
-            pygame.draw.rect(screen, WHITE, pygame.Rect(p[0]-offset, p[1]-offset, PATCH_SIZE-1, PATCH_SIZE-1), width=1)
-        #print()
+            # print(patches[p]["id"], end=" ")
+            pygame.draw.rect(screen, WHITE, pygame.Rect(p[0] - offset, p[1] - offset, PATCH_SIZE - 1, PATCH_SIZE - 1),
+                             width=1)
+        # print()
         # mostra la griglia che evidenzia le patch
         # for p in range(PATCH_SIZE, W_pixels, PATCH_SIZE):
         #     pygame.draw.line(screen, WHITE, (p, 0), (p, H_pixels))
@@ -65,21 +67,21 @@ while playing:
         #     pygame.draw.line(screen, WHITE, (0, p), (W_pixels, p))
     if MOVEMENT:
         choice = [PATCH_SIZE, -PATCH_SIZE, 0]
-        #choice = [PATCH_SIZE]
+        # choice = [PATCH_SIZE]
         for t in turtles:
             x, y = turtles[t]["pos"]
             x2, y2 = x + np.random.choice(choice), y + np.random.choice(choice)
             if x2 < 0:
-                x2 = W_pixels-offset
+                x2 = W_pixels - offset
             if x2 > W_pixels:
-                x2 = 0+offset
+                x2 = 0 + offset
             if y2 < 0:
-                y2 = H_pixels-offset
+                y2 = H_pixels - offset
             if y2 > H_pixels:
-                y2 = 0+offset
+                y2 = 0 + offset
             turtles[t]["pos"] = (x2, y2)
 
     pygame.display.flip()
-    #clock.tick(1)
+    # clock.tick(1)
 
 pygame.quit()

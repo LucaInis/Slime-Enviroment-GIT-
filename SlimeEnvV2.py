@@ -9,7 +9,7 @@ import numpy as np
 import random
 
 
-class BooleanSpace(gym.Space):  #  TODO improve implementation: should be a N-dimensional space of N boolean values
+class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dimensional space of N boolean values
     def __init__(self, size=None):
         """
         A space of boolean values
@@ -403,10 +403,14 @@ class Slime(gym.Env):
         return self.observation, 0, False, {}  # TODO check if 0 makes sense
 
     def render(self, **kwargs):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:  # chiusura finestra -> termina il programma
+                pygame.quit()
         if self.first_gui:
             self.first_gui = False
             pygame.init()
             pygame.display.set_caption("SLIME")
+
         self.screen.fill((0, 0, 0))
         self.clock.tick(self.metadata["render_fps"])
 
