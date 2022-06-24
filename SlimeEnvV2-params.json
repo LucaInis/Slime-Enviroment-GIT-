@@ -1,5 +1,5 @@
 {
-  "population": 50,
+  "population": 5,
   "sniff_threshold": 1,
   "smell_area": 1,
   "lay_area": 1,
@@ -11,9 +11,8 @@
   "penalty": -1,
   "episode_ticks": 250,
   "step": 1,
-  "grid_size": 250,
-  "W": 50,
-  "H": 25,
+  "W": 5,
+  "H": 5,
   "PATCH_SIZE": 20,
   "TURTLE_SIZE": 19,
   "SHOW_PATCHES": true

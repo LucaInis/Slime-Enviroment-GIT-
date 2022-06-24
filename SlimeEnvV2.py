@@ -67,8 +67,8 @@ class Slime(gym.Env):
         :param population:          Controls the number of non-learning slimes (= green turtles)
         :param sniff_threshold:     Controls how sensitive slimes are to pheromone (higher values make slimes less
                                     sensitive to pheromone)—unclear effect on learning, could be negligible
-        :param smell_area:          Controls the square area sorrounding the turtle whithin which it smells pheromone
-        :param lay_area:            Controls the square area sorrounding the turtle where pheromone is laid
+        :param smell_area:          Controls the radius of the square area sorrounding the turtle whithin which it smells pheromone
+        :param lay_area:            Controls the radius of the square area sorrounding the turtle where pheromone is laid
         :param lay_amount:          Controls how much pheromone is laid
         :param evaporation:         Controls how much pheromone evaporates at each step
         :param cluster_threshold:   Controls the minimum number of slimes needed to consider an aggregate within
@@ -83,7 +83,6 @@ class Slime(gym.Env):
         :param penalty:             Base penalty for not being in a cluster
         :param episode_ticks:       Number of ticks for episode termination
         :param step:                How many pixels do turtle move at each movement step
-        :param grid_size:           Simulation area is always a square
         :param render_mode:
         """
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -108,10 +107,10 @@ class Slime(gym.Env):
 
         self.coords = []
         self.offset = self.patch_size // 2
-        self.W_pixels = self.W * self.PATCH_SIZE
-        self.H_pixels = self.H * self.PATCH_SIZE
-        for x in range(self.offset, (self.W_pixels - self.offset) + 1, self.PATCH_SIZE):
-            for y in range(self.offset, (self.H_pixels - self.offset) + 1, self.PATCH_SIZE):
+        self.W_pixels = self.W * self.patch_size
+        self.H_pixels = self.H * self.patch_size
+        for x in range(self.offset, (self.W_pixels - self.offset) + 1, self.patch_size):
+            for y in range(self.offset, (self.H_pixels - self.offset) + 1, self.patch_size):
                 self.coords.append((x, y))  # "centre" of the patch or turtle (also ID of the patch)
 
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
@@ -129,6 +128,17 @@ class Slime(gym.Env):
 
         # patches-own [chemical] - amount of pheromone in each patch
         self.patches = {self.coords[i]: {"id": i, 'chemical': 0.0} for i in range(len(self.coords))}
+        # DOC pre-computed smell area for each patch, there including the patch taken as reference
+        self.smell_patches = {}
+        for p in self.patches:
+            self.smell_patches[p] = []
+            for x in range(p[0], p[0] + (self.smell_area * self.patch_size) + 1, self.patch_size):
+                for y in range(p[1], p[1] + (self.smell_area * self.patch_size) + 1, self.patch_size):
+                    self.smell_patches[p].append((x, y))
+            for x in range(p[0], p[0] - (self.smell_area * self.patch_size) - 1, -self.patch_size):
+                for y in range(p[1], p[1] - (self.smell_area * self.patch_size) - 1, -self.patch_size):
+                    self.smell_patches[p].append((x, y))
+            self.smell_patches[p] = list(set(self.smell_patches[p]))
 
         self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster
