@@ -8,6 +8,11 @@ from gym import spaces
 import numpy as np
 import random
 
+BLACK = (0, 0, 0)
+BLUE = (0, 0, 255)
+WHITE = (255, 255, 255)
+RED = (190, 0, 0)
+
 
 class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dimensional space of N boolean values
     def __init__(self, size=None):
@@ -95,11 +100,21 @@ class Slime(gym.Env):
         self.penalty = kwargs['penalty']
         self.episode_ticks = kwargs['episode_ticks']
 
-        self.move_step = kwargs['step']
-        self.width = kwargs['grid_size']
-        self.height = kwargs['grid_size']
+        self.W = kwargs['W']
+        self.H = kwargs['H']
+        self.patch_size = kwargs['PATCH_SIZE']
+        self.turtle_size = kwargs['TURTLE_SIZE']
+        self.show_patches = kwargs['SHOW_PATCHES']
 
-        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.coords = []
+        self.offset = self.patch_size // 2
+        self.W_pixels = self.W * self.PATCH_SIZE
+        self.H_pixels = self.H * self.PATCH_SIZE
+        for x in range(self.offset, (self.W_pixels - self.offset) + 1, self.PATCH_SIZE):
+            for y in range(self.offset, (self.H_pixels - self.offset) + 1, self.PATCH_SIZE):
+                self.coords.append((x, y))  # "centre" of the patch or turtle (also ID of the patch)
+
+        self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
         self.clock = pygame.time.Clock()
 
         self.rewards = []
@@ -108,18 +123,12 @@ class Slime(gym.Env):
         self.first_gui = True
 
         # create learner turtle
-        self.learner_pos = [np.random.randint(10, self.width - 10) for _ in
-                            range(2)]  # QUESTION +10 / -10 è per non mettere turtles troppo vicine al bordo?
+        self.learner = {"pos": self.coords[np.random.randint(len(self.coords))]}
         # create NON learner turtles
-        self.non_learner_pos = {}
-        for p in range(self.population):
-            self.non_learner_pos[str(p)] = [np.random.randint(10, self.width - 10) for _ in range(2)]
+        self.turtles = {i: {"pos": self.coords[np.random.randint(len(self.coords))]} for i in range(self.population)}
 
         # patches-own [chemical] - amount of pheromone in each patch
-        self.chemical_pos = {}
-        for x in range(self.width + 1):
-            for y in range(self.height + 1):
-                self.chemical_pos[(x, y)] = 0.0
+        self.patches = {self.coords[i]: {"id": i, 'chemical': 0.0} for i in range(len(self.coords))}
 
         self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster
@@ -128,36 +137,33 @@ class Slime(gym.Env):
     def step(self, action: int):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
         # non learners act
-        for turtle in self.non_learner_pos:
-            max_pheromone, max_coords = self._find_max_pheromone(self.non_learner_pos[turtle], self.smell_area)
+        for turtle in self.turtles:
+            max_pheromone, max_coords = self._find_max_pheromone(self.turtles[turtle]['pos'], self.smell_area)
 
             if max_pheromone >= self.sniff_threshold:
-                self.follow_pheromone(max_coords, self.non_learner_pos[turtle])
+                self.follow_pheromone(max_coords, self.turtles[turtle]['pos'])
             else:
-                self.walk(self.non_learner_pos[turtle])
+                self.walk(self.turtles[turtle]['pos'])
             # self.walk(self.non_learner_pos[turtle])
 
-            self.lay_pheromone(self.non_learner_pos[turtle], self.lay_area, self.lay_amount)
-            self._wrap(self.non_learner_pos[turtle])
+            self.lay_pheromone(self.turtles[turtle]['pos'], self.lay_area, self.lay_amount)
 
         # learner acts
         if action == 0:  # DOC walk
-            self.walk(self.learner_pos)
-            self._wrap(self.learner_pos)
+            self.walk(self.learner['pos'])
         elif action == 1:  # DOC lay_pheromone
-            self.lay_pheromone(self.learner_pos, self.lay_area, self.lay_amount)
+            self.lay_pheromone(self.learner['pos'], self.lay_area, self.lay_amount)
         elif action == 2:  # DOC follow_pheromone
-            max_pheromone, max_coords = self._find_max_pheromone(self.learner_pos, self.smell_area)
+            max_pheromone, max_coords = self._find_max_pheromone(self.learner['pos'], self.smell_area)
             if max_pheromone >= self.sniff_threshold:
-                self.follow_pheromone(max_coords, self.learner_pos)
+                self.follow_pheromone(max_coords, self.learner['pos'])
             else:
-                pass  # TODO check
-            self._wrap(self.learner_pos)
+                self.walk(self.learner['pos'])
 
         cur_reward = self.rewardfunc7()
         self.observation_space.change_all([self._check_cluster(), self._check_chemical()])
 
-        # self._diffuse()
+        self._diffuse()
         self._evaporate()
 
         return self.observation_space.observe(), cur_reward, False, {}
@@ -364,7 +370,7 @@ class Slime(gym.Env):
             self.cluster_ticks += 1
 
         cur_reward = ((cluster ^ 2) / self.cluster_threshold) * self.reward + (
-                    ((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
+                ((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
 
         self.rewards.append(cur_reward)
         return cur_reward
@@ -376,18 +382,14 @@ class Slime(gym.Env):
         self.cluster_ticks = 0
 
         # re-position learner turtle
-        self.learner_pos = [np.random.randint(10, self.width - 10) for _ in range(2)]
-
+        self.learner['pos'] = self.coords[np.random.randint(len(self.coords))]
         # re-position NON learner turtles
-        self.non_learner_pos = {}
-        for p in range(self.population):
-            self.non_learner_pos[str(p)] = [np.random.randint(10, self.width - 10) for _ in range(2)]
-
+        for t in self.turtles:
+            self.turtles[id]['pos'] = self.coords[np.random.randint(len(self.coords))]
         # patches-own [chemical] - amount of pheromone in the patch
-        self.chemical_pos = {}
-        for x in range(self.width + 1):
-            for y in range(self.height + 1):
-                self.chemical_pos[(x, y)] = 0
+        for p in self.patches:
+            self.patches[p]['chemical'] = 0.0
+
         return self.observation_space.observe(), 0, False, {}  # TODO check if 0 makes sense
 
     def render(self, **kwargs):
@@ -399,14 +401,14 @@ class Slime(gym.Env):
             pygame.init()
             pygame.display.set_caption("SLIME")
 
-        self.screen.fill((0, 0, 0))
+        self.screen.fill(BLACK)
         self.clock.tick(self.metadata["render_fps"])
 
         # Disegno LA turtle learner!
-        pygame.draw.circle(self.screen, (190, 0, 0), (self.learner_pos[0], self.learner_pos[1]), 3)
+        pygame.draw.circle(self.screen, RED, (self.learner_pos[0], self.learner_pos[1]), 3)
 
         for turtle in self.non_learner_pos.values():
-            pygame.draw.circle(self.screen, (0, 190, 0), (turtle[0], turtle[1]), 3)
+            pygame.draw.circle(self.screen, BLUE, (turtle[0], turtle[1]), 3)
         pygame.display.flip()
 
     def close(self):
@@ -417,7 +419,7 @@ class Slime(gym.Env):
 
 #   MAIN
 PARAMS_FILE = "SlimeEnvV2-params.json"
-EPISODES = 1
+EPISODES = 10
 LOG_EVERY = 100
 
 with open(PARAMS_FILE) as f:

@@ -9,7 +9,12 @@
   "cluster_radius": 10,
   "rew": 100,
   "penalty": -1,
-  "episode_ticks": 500,
+  "episode_ticks": 250,
   "step": 1,
-  "grid_size": 250
+  "grid_size": 250,
+  "W": 50,
+  "H": 25,
+  "PATCH_SIZE": 20,
+  "TURTLE_SIZE": 19,
+  "SHOW_PATCHES": true
 }
