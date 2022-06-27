@@ -67,6 +67,7 @@ class Slime(gym.Env):
         :param population:          Controls the number of non-learning slimes (= green turtles)
         :param sniff_threshold:     Controls how sensitive slimes are to pheromone (higher values make slimes less
                                     sensitive to pheromone)—unclear effect on learning, could be negligible
+        :param diffuse_area         Controls the diffusion radius
         :param smell_area:          Controls the radius of the square area sorrounding the turtle whithin which it smells pheromone
         :param lay_area:            Controls the radius of the square area sorrounding the turtle where pheromone is laid
         :param lay_amount:          Controls how much pheromone is laid
@@ -89,6 +90,7 @@ class Slime(gym.Env):
 
         self.population = kwargs['population']
         self.sniff_threshold = kwargs['sniff_threshold']
+        self.diffuse_area = kwargs['diffuse_area']
         self.smell_area = kwargs['smell_area']
         self.lay_area = kwargs['lay_area']
         self.lay_amount = kwargs['lay_amount']
@@ -128,21 +130,36 @@ class Slime(gym.Env):
 
         # patches-own [chemical] - amount of pheromone in each patch
         self.patches = {self.coords[i]: {"id": i, 'chemical': 0.0} for i in range(len(self.coords))}
-        # DOC pre-computed smell area for each patch, there including the patch taken as reference
+        # DOC {(x,y): [(x,y), ..., (x,y)]} pre-computed smell area for each patch, including itself
         self.smell_patches = {}
-        for p in self.patches:
-            self.smell_patches[p] = []
-            for x in range(p[0], p[0] + (self.smell_area * self.patch_size) + 1, self.patch_size):
-                for y in range(p[1], p[1] + (self.smell_area * self.patch_size) + 1, self.patch_size):
-                    self.smell_patches[p].append((x, y))
-            for x in range(p[0], p[0] - (self.smell_area * self.patch_size) - 1, -self.patch_size):
-                for y in range(p[1], p[1] - (self.smell_area * self.patch_size) - 1, -self.patch_size):
-                    self.smell_patches[p].append((x, y))
-            self.smell_patches[p] = list(set(self.smell_patches[p]))
+        self._find_neighbours(self.smell_patches, self.smell_area)
+        # DOC {(x,y): [(x,y), ..., (x,y)]} pre-computed lay area for each patch, including itself
+        self.lay_patches = {}
+        self._find_neighbours(self.lay_patches, self.lay_area)
+        # DOC {(x,y): [(x,y), ..., (x,y)]} pre-computed diffusion area for each patch, including itself
+        self.diffuse_patches = {}
+        self._find_neighbours(self.diffuse_patches, self.diffuse_area)
 
         self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster
         # DOC [1] = whether there is chemical in turtle patch
+
+    def _find_neighbours(self, neighbours, area):
+        """
+
+        :param neighbours:
+        :param area:
+        :return: None (1st argument modified as side effect)
+        """
+        for p in self.patches:
+            neighbours[p] = []
+            for x in range(p[0], p[0] + (area * self.patch_size) + 1, self.patch_size):
+                for y in range(p[1], p[1] + (area * self.patch_size) + 1, self.patch_size):
+                    neighbours[p].append((x, y))
+            for x in range(p[0], p[0] - (area * self.patch_size) - 1, -self.patch_size):
+                for y in range(p[1], p[1] - (area * self.patch_size) - 1, -self.patch_size):
+                    neighbours[p].append((x, y))
+            neighbours[p] = list(set(neighbours[p]))
 
     def step(self, action: int):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
@@ -178,104 +195,36 @@ class Slime(gym.Env):
 
         return self.observation_space.observe(), cur_reward, False, {}
 
-    def lay_pheromone(self, pos, area, amount):
+    def lay_pheromone(self, pos, amount):
         """
         Lay 'amount' pheromone in square 'area' centred in 'pos'
         :param pos: the x,y position taken as centre of pheromone deposit area
-        :param area: the square area within which pheromone will be laid
         :param amount: the amount of pheromone to deposit
         :return: None (environment properties are changed as side effect)
         """
-        bounds = self._get_bounds(area, pos)
-        # print("{", pos, bounds)
-        for x in range(bounds[0], bounds[2] + 1):
-            for y in range(bounds[1], bounds[3] + 1):
-                # print(f"  {x},{y}: {self.chemical_pos[(x,y)]}")
-                self.chemical_pos[(x, y)] += amount
-        # print("}")
-
-    def _get_bounds(self, area, pos):
-        """
-        Computes x,y bounds of a square area big as 'area' centred in 'pos'
-        :param area: the size of the square area
-        :param pos: the x,y centre of the area
-        :return: the x,y of the bounds of the area (list with 4 elements [minx, miny, maxx, maxy])
-        """
-        bounds = [pos[0] - area // 2,  # DOC min x
-                  pos[1] - area // 2,  # DOC min y
-                  pos[0] + area // 2,  # DOC max x
-                  pos[1] + area // 2]  # DOC max y
-        for i in range(len(bounds)):
-            if bounds[i] < 0:
-                bounds[i] = 0
-            elif bounds[i] > self.width:
-                bounds[i] = self.width
-        return bounds
+        for p in self.lay_patches[pos]:
+            self.patches[p]['chemical'] += amount
 
     def _diffuse(self):
-        diffused = []
-        for patch in self.chemical_pos:
-            # print(patch)
-            if patch not in diffused and self.chemical_pos[patch] > 0:
-                diffused.append(patch)
-                neighbours = self.adj_finder(patch)
-                for pos in neighbours:
-                    self.chemical_pos[pos] += self.chemical_pos[patch] / (len(neighbours) + 1)
-                    # self._diffuse_again(pos)
-                self.chemical_pos[patch] = 1 / (len(neighbours) + 1)
-
-    def _diffuse_again(self, who):
-        if self.chemical_pos[who] > 0:
-            neighbours = self.adj_finder(who)
-            for pos in neighbours:
-                self.chemical_pos[pos] += self.chemical_pos[who] / (len(neighbours) + 1)
-            self.chemical_pos[who] = 1 / (len(neighbours) + 1)
-
-    def adj_finder(self, position, distance=1):
         """
-        Generate adjacent cells within 'distance' to 'position' in every direction (diagonal included) that are legit,
-        that is, that do not extend beyond grid size and that are not the reference 'position'
-        :param position:
-        :param distance:
+
         :return:
         """
-        adj = []
-
-        for dx in range(0 - distance, 1 + distance):
-            for dy in range(0 - distance, 1 + distance):
-                range_x = range(0, self.width + 1)  # X bounds
-                range_y = range(0, self.height + 1)  # Y bounds
-
-                (new_x, new_y) = (position[0] + dx, position[1] + dy)  # adjacent cell
-
-                if (new_x in range_x) and (new_y in range_y) and (dx, dy) != (0, 0):
-                    adj.append((new_x, new_y))
-
-        return adj
+        for patch in self.patches:
+            if self.patches[patch]['chemical'] > 0:
+                n_size = len(self.diffuse_patches[patch])
+                for n in self.diffuse_patches[patch]:
+                    self.patches[n] += self.patches[patch] / (n_size + 1)
+                self.patches[patch] = 1 / (n_size + 1)
 
     def _evaporate(self):
         """
 
         :return:
         """
-        for patch in self.chemical_pos:
-            if self.chemical_pos[patch] > 0:
-                self.chemical_pos[patch] *= self.evaporation
-
-    def _wrap(self, pos):
-        """
-
-        :param pos:
-        :return:
-        """
-        if pos[0] > self.width - 10:  # QUESTION qual è il criterio per questi due numeri?
-            pos[0] = self.width - 15
-        elif pos[0] < 10:
-            pos[0] = 15
-        if pos[1] > self.height - 10:
-            pos[1] = self.height - 15
-        elif pos[1] < 10:
-            pos[1] = 15
+        for patch in self.patches:
+            if self.patches[patch] > 0:
+                self.patches[patch] *= self.evaporation
 
     def walk(self, pos):
         """

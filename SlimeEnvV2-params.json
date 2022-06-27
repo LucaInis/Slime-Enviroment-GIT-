@@ -1,6 +1,7 @@
 {
   "population": 5,
   "sniff_threshold": 1,
+  "diffuse_area": 1,
   "smell_area": 1,
   "lay_area": 1,
   "lay_amount": 1,
