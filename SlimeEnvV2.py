@@ -157,11 +157,30 @@ class Slime(gym.Env):
             neighbours[p] = []
             for x in range(p[0], p[0] + (area * self.patch_size) + 1, self.patch_size):
                 for y in range(p[1], p[1] + (area * self.patch_size) + 1, self.patch_size):
+                    x, y = self._wrap(x, y)
                     neighbours[p].append((x, y))
             for x in range(p[0], p[0] - (area * self.patch_size) - 1, -self.patch_size):
                 for y in range(p[1], p[1] - (area * self.patch_size) - 1, -self.patch_size):
+                    x, y = self._wrap(x, y)
                     neighbours[p].append((x, y))
             neighbours[p] = list(set(neighbours[p]))
+
+    def _wrap(self, x, y):
+        """
+        Wrap x,y coordinates around the torus
+        :param x:
+        :param y:
+        :return:
+        """
+        if x < 0:
+            x = self.W_pixels - self.offset
+        elif x > self.W_pixels:
+            x = 0 + self.offset
+        if y < 0:
+            y = self.H_pixels - self.offset
+        elif y > self.H_pixels:
+            y = 0 + self.offset
+        return x, y
 
     def step(self, action: int):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
@@ -237,14 +256,7 @@ class Slime(gym.Env):
         choice = [self.patch_size, -self.patch_size, 0]
         x, y = turtle['pos']
         x2, y2 = x + np.random.choice(choice), y + np.random.choice(choice)
-        if x2 < 0:
-            x2 = self.W_pixels - self.offset
-        if x2 > self.W_pixels:
-            x2 = 0 + self.offset
-        if y2 < 0:
-            y2 = self.H_pixels - self.offset
-        if y2 > self.H_pixels:
-            y2 = 0 + self.offset
+        x2, y2 = self._wrap(x2, y2)
         turtle['pos'] = (x2, y2)
 
     def follow_pheromone(self, ph_coords, turtle):
@@ -277,6 +289,7 @@ class Slime(gym.Env):
             x -= self.patch_size
         else:  # DOC il punto è la mia stessa patch
             pass
+        x, y = self._wrap(x, y)
         turtle['pos'] = (x, y)
 
     def _find_max_pheromone(self, pos):
@@ -338,7 +351,7 @@ class Slime(gym.Env):
         self.learner['pos'] = self.coords[np.random.randint(len(self.coords))]
         # re-position NON learner turtles
         for t in self.turtles:
-            self.turtles[id]['pos'] = self.coords[np.random.randint(len(self.coords))]
+            self.turtles[t]['pos'] = self.coords[np.random.randint(len(self.coords))]
         # patches-own [chemical] - amount of pheromone in the patch
         for p in self.patches:
             self.patches[p]['chemical'] = 0.0
