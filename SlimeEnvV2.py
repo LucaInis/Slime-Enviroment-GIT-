@@ -168,24 +168,24 @@ class Slime(gym.Env):
             max_pheromone, max_coords = self._find_max_pheromone(self.turtles[turtle]['pos'], self.smell_area)
 
             if max_pheromone >= self.sniff_threshold:
-                self.follow_pheromone(max_coords, self.turtles[turtle]['pos'])
+                self.follow_pheromone(max_coords, self.turtles[turtle])
             else:
-                self.walk(self.turtles[turtle]['pos'])
+                self.walk(self.turtles[turtle])
             # self.walk(self.non_learner_pos[turtle])
 
-            self.lay_pheromone(self.turtles[turtle]['pos'], self.lay_area, self.lay_amount)
+            self.lay_pheromone(self.turtles[turtle]['pos'], self.lay_amount)
 
         # learner acts
         if action == 0:  # DOC walk
-            self.walk(self.learner['pos'])
+            self.walk(self.learner)
         elif action == 1:  # DOC lay_pheromone
-            self.lay_pheromone(self.learner['pos'], self.lay_area, self.lay_amount)
+            self.lay_pheromone(self.learner['pos'], self.lay_amount)
         elif action == 2:  # DOC follow_pheromone
             max_pheromone, max_coords = self._find_max_pheromone(self.learner['pos'], self.smell_area)
             if max_pheromone >= self.sniff_threshold:
-                self.follow_pheromone(max_coords, self.learner['pos'])
+                self.follow_pheromone(max_coords, self.learner)
             else:
-                self.walk(self.learner['pos'])
+                self.walk(self.learner)
 
         cur_reward = self.rewardfunc7()
         self.observation_space.change_all([self._check_cluster(), self._check_chemical()])
@@ -226,55 +226,56 @@ class Slime(gym.Env):
             if self.patches[patch] > 0:
                 self.patches[patch] *= self.evaporation
 
-    def walk(self, pos):
+    def walk(self, turtle):
         """
-        Action 0: move in random direction
-        :param pos: the x,y position of the turtle to move
+        Action 0: move in random direction (8 sorrounding cells
+        :param turtle: the turtle to move
         :return: None (pos is updated after movement as side-effect)
         """
-        act = np.random.randint(4)
-        if act == 0:
-            pos[0] += self.move_step
-            pos[1] += self.move_step
-        elif act == 1:
-            pos[0] -= self.move_step
-            pos[1] -= self.move_step
-        elif act == 2:
-            pos[0] -= self.move_step
-            pos[1] += self.move_step
-        else:
-            pos[0] += self.move_step
-            pos[1] -= self.move_step
+        choice = [self.patch_size, -self.patch_size, 0]
+        x, y = turtle['pos']
+        x2, y2 = x + np.random.choice(choice), y + np.random.choice(choice)
+        if x2 < 0:
+            x2 = self.W_pixels - self.offset
+        if x2 > self.W_pixels:
+            x2 = 0 + self.offset
+        if y2 < 0:
+            y2 = self.H_pixels - self.offset
+        if y2 > self.H_pixels:
+            y2 = 0 + self.offset
+        turtle['pos'] = (x2, y2)
 
-    def follow_pheromone(self, ph_coords, pos):
+    def follow_pheromone(self, ph_coords, turtle):
         """
         Action 2: move turtle towards greatest pheromone found
         :param ph_coords: the position where max pheromone has been sensed
-        :param pos: the x,y position of the turtle looking for pheromone
+        :param turtle: the turtle looking for pheromone
         :return: None (pos is updated after movement as side-effect)
         """
-        if ph_coords[0] > pos[0] and ph_coords[1] > pos[1]:  # allora il punto si trova in alto a dx
-            pos[0] += self.move_step
-            pos[1] += self.move_step
-        elif ph_coords[0] < pos[0] and ph_coords[1] < pos[1]:  # allora il punto si trova in basso a sx
-            pos[0] -= self.move_step
-            pos[1] -= self.move_step
-        elif ph_coords[0] > pos[0] and ph_coords[1] < pos[1]:  # allora il punto si trova in basso a dx
-            pos[0] += self.move_step
-            pos[1] -= self.move_step
-        elif ph_coords[0] < pos[0] and ph_coords[1] > pos[1]:  # allora il punto si trova in alto a sx
-            pos[0] -= self.move_step
-            pos[1] += self.move_step
-        elif ph_coords[0] == pos[0] and ph_coords[1] < pos[1]:  # allora il punto si trova in basso sulla mia colonna
-            pos[1] -= self.move_step
-        elif ph_coords[0] == pos[0] and ph_coords[1] > pos[1]:  # allora il punto si trova in alto sulla mia colonna
-            pos[1] += self.move_step
-        elif ph_coords[0] > pos[0] and ph_coords[1] == pos[1]:  # allora il punto si trova alla mia dx
-            pos[0] += self.move_step
-        elif ph_coords[0] < pos[0] and ph_coords[1] == pos[1]:  # allora il punto si trova alla mia sx
-            pos[0] -= self.move_step
-        else:
-            pass  # TODO check
+        x, y = turtle['pos']
+        if ph_coords[0] > x and ph_coords[1] > y:  # allora il punto si trova in alto a dx
+            x += self.patch_size
+            y += self.patch_size
+        elif ph_coords[0] < x and ph_coords[1] < y:  # allora il punto si trova in basso a sx
+            x -= self.patch_size
+            y -= self.patch_size
+        elif ph_coords[0] > x and ph_coords[1] < y:  # allora il punto si trova in basso a dx
+            x += self.patch_size
+            y -= self.patch_size
+        elif ph_coords[0] < x and ph_coords[1] > y:  # allora il punto si trova in alto a sx
+            x -= self.patch_size
+            y += self.patch_size
+        elif ph_coords[0] == x and ph_coords[1] < y:  # allora il punto si trova in basso sulla mia colonna
+            y -= self.patch_size
+        elif ph_coords[0] == x and ph_coords[1] > y:  # allora il punto si trova in alto sulla mia colonna
+            y += self.patch_size
+        elif ph_coords[0] > x and ph_coords[1] == y:  # allora il punto si trova alla mia dx
+            x += self.patch_size
+        elif ph_coords[0] < x and ph_coords[1] == y:  # allora il punto si trova alla mia sx
+            x -= self.patch_size
+        else:  # DOC il punto è la mia stessa patch
+            pass
+        turtle['pos'] = (x, y)
 
     def _find_max_pheromone(self, pos, area):
         """
