@@ -83,7 +83,6 @@ class Slime(gym.Env):
         :param rew:                 Base reward for being in a cluster
         :param penalty:             Base penalty for not being in a cluster
         :param episode_ticks:       Number of ticks for episode termination
-        :param step:                How many pixels do turtle move at each movement step
         :param render_mode:
         """
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -139,6 +138,9 @@ class Slime(gym.Env):
         # DOC {(x,y): [(x,y), ..., (x,y)]} pre-computed diffusion area for each patch, including itself
         self.diffuse_patches = {}
         self._find_neighbours(self.diffuse_patches, self.diffuse_area)
+        # DOC {(x,y): [(x,y), ..., (x,y)]} pre-computed cluster-check for each patch, including itself
+        self.cluster_patches = {}
+        self._find_neighbours(self.cluster_patches, self.cluster_radius)
 
         self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster
@@ -165,7 +167,7 @@ class Slime(gym.Env):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
         # non learners act
         for turtle in self.turtles:
-            max_pheromone, max_coords = self._find_max_pheromone(self.turtles[turtle]['pos'], self.smell_area)
+            max_pheromone, max_coords = self._find_max_pheromone(self.turtles[turtle]['pos'])
 
             if max_pheromone >= self.sniff_threshold:
                 self.follow_pheromone(max_coords, self.turtles[turtle])
@@ -181,7 +183,7 @@ class Slime(gym.Env):
         elif action == 1:  # DOC lay_pheromone
             self.lay_pheromone(self.learner['pos'], self.lay_amount)
         elif action == 2:  # DOC follow_pheromone
-            max_pheromone, max_coords = self._find_max_pheromone(self.learner['pos'], self.smell_area)
+            max_pheromone, max_coords = self._find_max_pheromone(self.learner['pos'])
             if max_pheromone >= self.sniff_threshold:
                 self.follow_pheromone(max_coords, self.learner)
             else:
@@ -277,22 +279,17 @@ class Slime(gym.Env):
             pass
         turtle['pos'] = (x, y)
 
-    def _find_max_pheromone(self, pos, area):
+    def _find_max_pheromone(self, pos):
         """
         Find where the maximum pheromone level is within square 'area' centred in 'pos'
         :param pos: the x,y position of the turtle looking for pheromone
-        :param area: the square area where to look within
         :return: the maximum pheromone level found and its x,y position
         """
-        bounds = self._get_bounds(area, pos)
-
         max_ph = -1
-        max_pos = []
-        for x in range(bounds[0], bounds[2]):
-            for y in range(bounds[1], bounds[3]):
-                if self.chemical_pos[(x, y)] > max_ph:
-                    max_ph = self.chemical_pos[(x, y)]
-                    max_pos = [x, y]
+        for p in self.smell_patches[pos]:
+            if self.patches[p]['chemical'] > max_ph:
+                max_ph = self.patches[p]['chemical']
+                max_pos = p
 
         return max_ph, max_pos
 
@@ -302,14 +299,10 @@ class Slime(gym.Env):
         :return: a boolean
         """
         cluster = 1
-        area = []
-        for x in range(self.learner_pos[0] - self.cluster_radius // 2, self.learner_pos[0] + self.cluster_radius // 2):
-            for y in range(self.learner_pos[1] - self.cluster_radius // 2,
-                           self.learner_pos[1] + self.cluster_radius // 2):
-                area.append([x, y])
-        for pair in self.non_learner_pos.values():
-            if pair in area:
+        for t in self.turtles:
+            if self.turtles[t]['pos'] in self.cluster_patches[self.learner['pos']]:
                 cluster += 1
+
         return cluster >= self.cluster_threshold
 
     def _check_chemical(self):
@@ -317,7 +310,7 @@ class Slime(gym.Env):
         Checks whether there is pheromone on the patch where the learner turtle is
         :return: a boolean
         """
-        return self.chemical_pos[(self.learner_pos[0], self.learner_pos[1])] > 0
+        return self.patches[self.learner['pos']]['chemical'] > 0  # QUESTION should we use self.sniff_threshold here?
 
     def rewardfunc7(self):
         """
