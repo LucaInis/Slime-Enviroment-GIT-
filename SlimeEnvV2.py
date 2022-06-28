@@ -235,8 +235,8 @@ class Slime(gym.Env):
             if self.patches[patch]['chemical'] > 0:
                 n_size = len(self.diffuse_patches[patch])
                 for n in self.diffuse_patches[patch]:
-                    self.patches[n] += self.patches[patch] / (n_size + 1)
-                self.patches[patch] = 1 / (n_size + 1)
+                    self.patches[n]['chemical'] += self.patches[patch]['chemical'] / (n_size + 1)
+                self.patches[patch]['chemical'] = 1 / (n_size + 1)
 
     def _evaporate(self):
         """
@@ -244,8 +244,8 @@ class Slime(gym.Env):
         :return:
         """
         for patch in self.patches:
-            if self.patches[patch] > 0:
-                self.patches[patch] *= self.evaporation
+            if self.patches[patch]['chemical'] > 0:
+                self.patches[patch]['chemical'] *= self.evaporation
 
     def walk(self, turtle):
         """
