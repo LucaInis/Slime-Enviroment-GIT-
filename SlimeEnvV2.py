@@ -349,19 +349,25 @@ class Slime(gym.Env):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:  # chiusura finestra -> termina il programma
                 pygame.quit()
+
         if self.first_gui:
             self.first_gui = False
             pygame.init()
             pygame.display.set_caption("SLIME")
 
         self.screen.fill(BLACK)
-        self.clock.tick(self.metadata["render_fps"])
-
         # Disegno LA turtle learner!
-        pygame.draw.circle(self.screen, RED, (self.learner_pos[0], self.learner_pos[1]), 3)
+        pygame.draw.circle(self.screen, RED, (self.learner['pos'][0], self.learner['pos'][1]), self.turtle_size // 2)
+        # disegno le altre turtles
+        for turtle in self.turtles.values():
+            pygame.draw.circle(self.screen, BLUE, (turtle['pos'][0], turtle['pos'][1]), self.turtle_size // 2)
+        # disegno le patches
+        if self.show_patches:
+            for p in self.patches:
+                pygame.draw.rect(self.screen, WHITE, pygame.Rect(p[0] - self.offset, p[1] - self.offset,
+                                                                 self.patch_size - 1, self.patch_size - 1), width=1)
 
-        for turtle in self.non_learner_pos.values():
-            pygame.draw.circle(self.screen, BLUE, (turtle[0], turtle[1]), 3)
+        self.clock.tick(self.metadata["render_fps"])
         pygame.display.flip()
 
     def close(self):
@@ -378,6 +384,7 @@ LOG_EVERY = 100
 with open(PARAMS_FILE) as f:
     params = json.load(f)
 env = Slime(render_mode="human", **params)
+
 for ep in range(1, EPISODES + 1):
     env.reset()
     print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
