@@ -116,6 +116,8 @@ class Slime(gym.Env):
 
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
         self.clock = pygame.time.Clock()
+        pygame.font.init()
+        self.font = pygame.font.SysFont("arial", self.patch_size // 2)
 
         self.rewards = []
         self.cluster_ticks = 0  # conta i tick che la turtle passa in un cluster
@@ -128,7 +130,12 @@ class Slime(gym.Env):
         self.turtles = {i: {"pos": self.coords[np.random.randint(len(self.coords))]} for i in range(self.population)}
 
         # patches-own [chemical] - amount of pheromone in each patch
-        self.patches = {self.coords[i]: {"id": i, 'chemical': 0.0} for i in range(len(self.coords))}
+        self.patches = {self.coords[i]: {"id": i,
+                                         'chemical': 0.0,
+                                         'turtles': []} for i in range(len(self.coords))}
+        self.patches[self.learner['pos']]['turtles'].append(-1)  # DOC id of learner turtle
+        for t in self.turtles:
+            self.patches[self.turtles[t]['pos']]['turtles'].append(t)
         # DOC {(x,y): [(x,y), ..., (x,y)]} pre-computed smell area for each patch, including itself
         self.smell_patches = {}
         self._find_neighbours(self.smell_patches, self.smell_area)
@@ -189,24 +196,24 @@ class Slime(gym.Env):
             max_pheromone, max_coords = self._find_max_pheromone(self.turtles[turtle]['pos'])
 
             if max_pheromone >= self.sniff_threshold:
-                self.follow_pheromone(max_coords, self.turtles[turtle])
+                self.follow_pheromone(max_coords, self.turtles[turtle], turtle)
             else:
-                self.walk(self.turtles[turtle])
+                self.walk(self.turtles[turtle], turtle)
             # self.walk(self.non_learner_pos[turtle])
 
             self.lay_pheromone(self.turtles[turtle]['pos'], self.lay_amount)
 
         # learner acts
         if action == 0:  # DOC walk
-            self.walk(self.learner)
+            self.walk(self.learner, -1)
         elif action == 1:  # DOC lay_pheromone
             self.lay_pheromone(self.learner['pos'], self.lay_amount)
         elif action == 2:  # DOC follow_pheromone
             max_pheromone, max_coords = self._find_max_pheromone(self.learner['pos'])
             if max_pheromone >= self.sniff_threshold:
-                self.follow_pheromone(max_coords, self.learner)
+                self.follow_pheromone(max_coords, self.learner, -1)
             else:
-                self.walk(self.learner)
+                self.walk(self.learner, -1)
 
         cur_reward = self.rewardfunc7()
         self.observation_space.change_all([self._check_cluster(), self._check_chemical()])
@@ -247,26 +254,31 @@ class Slime(gym.Env):
             if self.patches[patch]['chemical'] > 0:
                 self.patches[patch]['chemical'] *= self.evaporation
 
-    def walk(self, turtle):
+    def walk(self, turtle, _id):
         """
         Action 0: move in random direction (8 sorrounding cells
+        :param _id: the id of the turtle to move
         :param turtle: the turtle to move
         :return: None (pos is updated after movement as side-effect)
         """
         choice = [self.patch_size, -self.patch_size, 0]
         x, y = turtle['pos']
+        self.patches[turtle['pos']]['turtles'].remove(_id)
         x2, y2 = x + np.random.choice(choice), y + np.random.choice(choice)
         x2, y2 = self._wrap(x2, y2)
         turtle['pos'] = (x2, y2)
+        self.patches[turtle['pos']]['turtles'].append(_id)
 
-    def follow_pheromone(self, ph_coords, turtle):
+    def follow_pheromone(self, ph_coords, turtle, _id):
         """
         Action 2: move turtle towards greatest pheromone found
+        :param _id: the id of the turtle to move
         :param ph_coords: the position where max pheromone has been sensed
         :param turtle: the turtle looking for pheromone
         :return: None (pos is updated after movement as side-effect)
         """
         x, y = turtle['pos']
+        self.patches[turtle['pos']]['turtles'].remove(_id)
         if ph_coords[0] > x and ph_coords[1] > y:  # allora il punto si trova in alto a dx
             x += self.patch_size
             y += self.patch_size
@@ -291,6 +303,7 @@ class Slime(gym.Env):
             pass
         x, y = self._wrap(x, y)
         turtle['pos'] = (x, y)
+        self.patches[turtle['pos']]['turtles'].append(_id)
 
     def _find_max_pheromone(self, pos):
         """
@@ -348,10 +361,14 @@ class Slime(gym.Env):
         self.cluster_ticks = 0
 
         # re-position learner turtle
+        self.patches[self.learner['pos']]['turtles'].remove(-1)
         self.learner['pos'] = self.coords[np.random.randint(len(self.coords))]
+        self.patches[self.learner['pos']]['turtles'].append(-1)  # DOC id of learner turtle
         # re-position NON learner turtles
         for t in self.turtles:
+            self.patches[self.turtles[t]['pos']]['turtles'].remove(t)
             self.turtles[t]['pos'] = self.coords[np.random.randint(len(self.coords))]
+            self.patches[self.turtles[t]['pos']]['turtles'].append(t)
         # patches-own [chemical] - amount of pheromone in the patch
         for p in self.patches:
             self.patches[p]['chemical'] = 0.0
@@ -379,6 +396,9 @@ class Slime(gym.Env):
             for p in self.patches:
                 pygame.draw.rect(self.screen, WHITE, pygame.Rect(p[0] - self.offset, p[1] - self.offset,
                                                                  self.patch_size - 1, self.patch_size - 1), width=1)
+                if len(self.patches[p]['turtles']) > 0:
+                    text = self.font.render(str(len(self.patches[p]['turtles'])), True, RED if -1 in self.patches[p]['turtles'] else WHITE)
+                    self.screen.blit(text, text.get_rect(center=p))
 
         self.clock.tick(self.metadata["render_fps"])
         pygame.display.flip()
