@@ -12,6 +12,7 @@ BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
 RED = (190, 0, 0)
+GREEN = (0, 190, 0)
 
 
 class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dimensional space of N boolean values
@@ -58,7 +59,7 @@ class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dim
 
 
 class Slime(gym.Env):
-    metadata = {"render_modes": "human", "render_fps": 30}
+    metadata = {"render_modes": "human"}
 
     def __init__(self,
                  render_mode: Optional[str] = None,
@@ -105,6 +106,7 @@ class Slime(gym.Env):
         self.patch_size = kwargs['PATCH_SIZE']
         self.turtle_size = kwargs['TURTLE_SIZE']
         self.show_patches = kwargs['SHOW_PATCHES']
+        self.fps = kwargs['FPS']
 
         self.coords = []
         self.offset = self.patch_size // 2
@@ -117,7 +119,8 @@ class Slime(gym.Env):
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
         self.clock = pygame.time.Clock()
         pygame.font.init()
-        self.font = pygame.font.SysFont("arial", self.patch_size // 2)
+        self.cluster_font = pygame.font.SysFont("arial", self.patch_size // 2)
+        self.chemical_font = pygame.font.SysFont("arial", self.patch_size // 3)
 
         self.rewards = []
         self.cluster_ticks = 0  # conta i tick che la turtle passa in un cluster
@@ -216,7 +219,7 @@ class Slime(gym.Env):
                 self.walk(self.learner, -1)
 
         cur_reward = self.rewardfunc7()
-        self.observation_space.change_all([self._check_cluster(), self._check_chemical()])
+        self.observation_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
 
         self._diffuse()
         self._evaporate()
@@ -319,24 +322,26 @@ class Slime(gym.Env):
 
         return max_ph, max_pos
 
-    def _check_cluster(self):
+    def _compute_cluster(self):
         """
         Checks whether the learner turtle is within a cluster, given 'cluster_radius' and 'cluster_threshold'
         :return: a boolean
         """
         cluster = 1
-        for t in self.turtles:
-            if self.turtles[t]['pos'] in self.cluster_patches[self.learner['pos']]:
-                cluster += 1
+        # for t in self.turtles:
+        #     if self.turtles[t]['pos'] in self.cluster_patches[self.learner['pos']]:
+        #         cluster += 1
+        for p in self.cluster_patches[self.learner['pos']]:
+            cluster += len(self.patches[p]['turtles'])
 
-        return cluster >= self.cluster_threshold
+        return cluster
 
     def _check_chemical(self):
         """
         Checks whether there is pheromone on the patch where the learner turtle is
         :return: a boolean
         """
-        return self.patches[self.learner['pos']]['chemical'] > 0  # QUESTION should we use self.sniff_threshold here?
+        return self.patches[self.learner['pos']]['chemical'] > self.sniff_threshold  # QUESTION should we use self.sniff_threshold here?
 
     def rewardfunc7(self):
         """
@@ -344,7 +349,7 @@ class Slime(gym.Env):
         clusters
         :return: the reward
         """
-        cluster = self._check_cluster()
+        cluster = self._compute_cluster()
         if cluster >= self.cluster_threshold:
             self.cluster_ticks += 1
 
@@ -396,11 +401,16 @@ class Slime(gym.Env):
             for p in self.patches:
                 pygame.draw.rect(self.screen, WHITE, pygame.Rect(p[0] - self.offset, p[1] - self.offset,
                                                                  self.patch_size - 1, self.patch_size - 1), width=1)
-                if len(self.patches[p]['turtles']) > 0:
-                    text = self.font.render(str(len(self.patches[p]['turtles'])), True, RED if -1 in self.patches[p]['turtles'] else WHITE)
+        for p in self.patches:
+            if len(self.patches[p]['turtles']) > 1:
+                text = self.cluster_font.render(str(len(self.patches[p]['turtles'])), True, RED if -1 in self.patches[p]['turtles'] else WHITE)
+                self.screen.blit(text, text.get_rect(center=p))
+            else:
+                if self.patches[p]['chemical'] > 0:
+                    text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
                     self.screen.blit(text, text.get_rect(center=p))
 
-        self.clock.tick(self.metadata["render_fps"])
+        self.clock.tick(self.fps)
         pygame.display.flip()
 
     def close(self):
@@ -412,7 +422,7 @@ class Slime(gym.Env):
 #   MAIN
 PARAMS_FILE = "SlimeEnvV2-params.json"
 EPISODES = 10
-LOG_EVERY = 100
+LOG_EVERY = 10
 
 with open(PARAMS_FILE) as f:
     params = json.load(f)
