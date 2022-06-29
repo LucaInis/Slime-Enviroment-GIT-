@@ -128,15 +128,16 @@ class Slime(gym.Env):
 
         self.first_gui = True
 
+        n_coords = len(self.coords)
         # create learner turtle
-        self.learner = {"pos": self.coords[np.random.randint(len(self.coords))]}
+        self.learner = {"pos": self.coords[np.random.randint(n_coords)]}
         # create NON learner turtles
-        self.turtles = {i: {"pos": self.coords[np.random.randint(len(self.coords))]} for i in range(self.population)}
+        self.turtles = {i: {"pos": self.coords[np.random.randint(n_coords)]} for i in range(self.population)}
 
         # patches-own [chemical] - amount of pheromone in each patch
         self.patches = {self.coords[i]: {"id": i,
                                          'chemical': 0.0,
-                                         'turtles': []} for i in range(len(self.coords))}
+                                         'turtles': []} for i in range(n_coords)}
         self.patches[self.learner['pos']]['turtles'].append(-1)  # DOC id of learner turtle
         for t in self.turtles:
             self.patches[self.turtles[t]['pos']]['turtles'].append(t)
@@ -197,15 +198,17 @@ class Slime(gym.Env):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
         # non learners act
         for turtle in self.turtles:
-            max_pheromone, max_coords = self._find_max_pheromone(self.turtles[turtle]['pos'])
+            pos = self.turtles[turtle]['pos']
+            t = self.turtles[turtle]
+            max_pheromone, max_coords = self._find_max_pheromone(pos)
 
             if max_pheromone >= self.sniff_threshold:
-                self.follow_pheromone(max_coords, self.turtles[turtle], turtle)
+                self.follow_pheromone(max_coords, t, turtle)
             else:
-                self.walk(self.turtles[turtle], turtle)
+                self.walk(t, turtle)
             # self.walk(self.non_learner_pos[turtle])
 
-            self.lay_pheromone(self.turtles[turtle]['pos'], self.lay_amount)
+            self.lay_pheromone(pos, self.lay_amount)
 
         # learner acts
         if action == 0:  # DOC walk
@@ -243,10 +246,11 @@ class Slime(gym.Env):
         :return:
         """
         for patch in self.patches:
-            if self.patches[patch]['chemical'] > 0:
+            p = self.patches[patch]['chemical']
+            if p > 0:
                 n_size = len(self.diffuse_patches[patch])
                 for n in self.diffuse_patches[patch]:
-                    self.patches[n]['chemical'] += self.patches[patch]['chemical'] / (n_size + 1)
+                    self.patches[n]['chemical'] += p / (n_size + 1)
                 self.patches[patch]['chemical'] = 1 / (n_size + 1)
 
     def _evaporate(self):
@@ -316,9 +320,11 @@ class Slime(gym.Env):
         :return: the maximum pheromone level found and its x,y position
         """
         max_ph = -1
+        max_pos = pos
         for p in self.smell_patches[pos]:
-            if self.patches[p]['chemical'] > max_ph:
-                max_ph = self.patches[p]['chemical']
+            chem = self.patches[p]['chemical']
+            if chem > max_ph:
+                max_ph = chem
                 max_pos = p
 
         return max_ph, max_pos
@@ -329,9 +335,6 @@ class Slime(gym.Env):
         :return: a boolean
         """
         cluster = 1
-        # for t in self.turtles:
-        #     if self.turtles[t]['pos'] in self.cluster_patches[self.learner['pos']]:
-        #         cluster += 1
         for p in self.cluster_patches[self.learner['pos']]:
             cluster += len(self.patches[p]['turtles'])
 
@@ -342,7 +345,8 @@ class Slime(gym.Env):
         Checks whether there is pheromone on the patch where the learner turtle is
         :return: a boolean
         """
-        return self.patches[self.learner['pos']]['chemical'] > self.sniff_threshold  # QUESTION should we use self.sniff_threshold here?
+        return self.patches[self.learner['pos']][
+                   'chemical'] > self.sniff_threshold  # QUESTION should we use self.sniff_threshold here?
 
     def rewardfunc7(self):
         """
