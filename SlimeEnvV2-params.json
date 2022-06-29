@@ -16,5 +16,6 @@
   "PATCH_SIZE": 30,
   "TURTLE_SIZE": 25,
   "SHOW_PATCHES": false,
-  "FPS": 30
+  "FPS": 30,
+  "SHADE_STRENGTH": 5
 }

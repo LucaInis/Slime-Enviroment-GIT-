@@ -107,6 +107,7 @@ class Slime(gym.Env):
         self.turtle_size = kwargs['TURTLE_SIZE']
         self.show_patches = kwargs['SHOW_PATCHES']
         self.fps = kwargs['FPS']
+        self.shade_strength = kwargs['SHADE_STRENGTH']
 
         self.coords = []
         self.offset = self.patch_size // 2
@@ -391,24 +392,32 @@ class Slime(gym.Env):
             pygame.display.set_caption("SLIME")
 
         self.screen.fill(BLACK)
-        # Disegno LA turtle learner!
-        pygame.draw.circle(self.screen, RED, (self.learner['pos'][0], self.learner['pos'][1]), self.turtle_size // 2)
-        # disegno le altre turtles
-        for turtle in self.turtles.values():
-            pygame.draw.circle(self.screen, BLUE, (turtle['pos'][0], turtle['pos'][1]), self.turtle_size // 2)
         # disegno le patches
         if self.show_patches:
             for p in self.patches:
                 pygame.draw.rect(self.screen, WHITE, pygame.Rect(p[0] - self.offset, p[1] - self.offset,
                                                                  self.patch_size - 1, self.patch_size - 1), width=1)
         for p in self.patches:
+            chem = round(self.patches[p]['chemical']) * self.shade_strength
+            pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),
+                             pygame.Rect(p[0] - self.offset, p[1] + self.offset, self.patch_size, self.patch_size))
+            # else:
+            #     if self.patches[p]['chemical'] > 0:
+            #         text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
+            #         self.screen.blit(text, text.get_rect(center=p))
+
+        # Disegno LA turtle learner!
+        pygame.draw.circle(self.screen, RED, (self.learner['pos'][0], self.learner['pos'][1]),
+                           self.turtle_size // 2)
+        # disegno le altre turtles
+        for turtle in self.turtles.values():
+            pygame.draw.circle(self.screen, BLUE, (turtle['pos'][0], turtle['pos'][1]), self.turtle_size // 2)
+
+        for p in self.patches:
             if len(self.patches[p]['turtles']) > 1:
-                text = self.cluster_font.render(str(len(self.patches[p]['turtles'])), True, RED if -1 in self.patches[p]['turtles'] else WHITE)
+                text = self.cluster_font.render(str(len(self.patches[p]['turtles'])), True,
+                                                RED if -1 in self.patches[p]['turtles'] else WHITE)
                 self.screen.blit(text, text.get_rect(center=p))
-            else:
-                if self.patches[p]['chemical'] > 0:
-                    text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
-                    self.screen.blit(text, text.get_rect(center=p))
 
         self.clock.tick(self.fps)
         pygame.display.flip()
