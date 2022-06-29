@@ -105,7 +105,6 @@ class Slime(gym.Env):
         self.H = kwargs['H']
         self.patch_size = kwargs['PATCH_SIZE']
         self.turtle_size = kwargs['TURTLE_SIZE']
-        self.show_patches = kwargs['SHOW_PATCHES']
         self.fps = kwargs['FPS']
         self.shade_strength = kwargs['SHADE_STRENGTH']
 
@@ -397,10 +396,6 @@ class Slime(gym.Env):
 
         self.screen.fill(BLACK)
         # disegno le patches
-        if self.show_patches:
-            for p in self.patches:
-                pygame.draw.rect(self.screen, WHITE, pygame.Rect(p[0] - self.offset, p[1] - self.offset,
-                                                                 self.patch_size - 1, self.patch_size - 1), width=1)
         for p in self.patches:
             chem = round(self.patches[p]['chemical']) * self.shade_strength
             pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),

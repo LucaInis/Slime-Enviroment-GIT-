@@ -1,7 +1,7 @@
 {
   "population": 200,
   "sniff_threshold": 1,
-  "diffuse_area": 1,
+  "diffuse_area": 3,
   "smell_area": 2,
   "lay_area": 1,
   "lay_amount": 1,
@@ -15,7 +15,6 @@
   "H": 20,
   "PATCH_SIZE": 30,
   "TURTLE_SIZE": 25,
-  "SHOW_PATCHES": false,
   "FPS": 30,
   "SHADE_STRENGTH": 5
 }
