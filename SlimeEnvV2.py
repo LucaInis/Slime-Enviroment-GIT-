@@ -107,6 +107,7 @@ class Slime(gym.Env):
         self.turtle_size = kwargs['TURTLE_SIZE']
         self.fps = kwargs['FPS']
         self.shade_strength = kwargs['SHADE_STRENGTH']
+        self.show_chem_text = kwargs['SHOW_CHEM_TEXT']
 
         self.coords = []
         self.offset = self.patch_size // 2
@@ -410,9 +411,10 @@ class Slime(gym.Env):
             chem = round(self.patches[p]['chemical']) * self.shade_strength
             pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),
                              pygame.Rect(p[0] - self.offset, p[1] - self.offset, self.patch_size, self.patch_size))
-            if self.patches[p]['chemical'] > self.sniff_threshold:
-                text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
-                self.screen.blit(text, text.get_rect(center=p))
+            if self.show_chem_text:
+                if self.patches[p]['chemical'] > self.sniff_threshold:
+                    text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
+                    self.screen.blit(text, text.get_rect(center=p))
 
         # Disegno LA turtle learner!
         pygame.draw.circle(self.screen, RED, (self.learner['pos'][0], self.learner['pos'][1]),
