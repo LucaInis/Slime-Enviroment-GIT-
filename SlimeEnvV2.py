@@ -399,11 +399,10 @@ class Slime(gym.Env):
         for p in self.patches:
             chem = round(self.patches[p]['chemical']) * self.shade_strength
             pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),
-                             pygame.Rect(p[0] - self.offset, p[1] + self.offset, self.patch_size, self.patch_size))
-            # else:
-            #     if self.patches[p]['chemical'] > 0:
-            #         text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
-            #         self.screen.blit(text, text.get_rect(center=p))
+                             pygame.Rect(p[0] - self.offset, p[1] - self.offset, self.patch_size, self.patch_size))
+            if self.patches[p]['chemical'] > 0:
+                text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
+                self.screen.blit(text, text.get_rect(center=p))
 
         # Disegno LA turtle learner!
         pygame.draw.circle(self.screen, RED, (self.learner['pos'][0], self.learner['pos'][1]),
