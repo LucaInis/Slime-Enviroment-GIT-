@@ -15,6 +15,6 @@
   "H": 20,
   "PATCH_SIZE": 30,
   "TURTLE_SIZE": 25,
-  "FPS": 10,
+  "FPS": 5,
   "SHADE_STRENGTH": 5
 }

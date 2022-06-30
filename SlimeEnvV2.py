@@ -174,6 +174,14 @@ class Slime(gym.Env):
                 for y in range(p[1], p[1] - (area * self.patch_size) - 1, -self.patch_size):
                     x, y = self._wrap(x, y)
                     neighbours[p].append((x, y))
+            for x in range(p[0], p[0] + (area * self.patch_size) + 1, self.patch_size):
+                for y in range(p[1], p[1] - (area * self.patch_size) - 1, -self.patch_size):
+                    x, y = self._wrap(x, y)
+                    neighbours[p].append((x, y))
+            for x in range(p[0], p[0] - (area * self.patch_size) - 1, -self.patch_size):
+                for y in range(p[1], p[1] + (area * self.patch_size) + 1, self.patch_size):
+                    x, y = self._wrap(x, y)
+                    neighbours[p].append((x, y))
             neighbours[p] = list(set(neighbours[p]))
 
     def _wrap(self, x, y):
@@ -195,6 +203,9 @@ class Slime(gym.Env):
 
     def step(self, action: int):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
+        self._evaporate()
+        self._diffuse()
+
         # non learners act
         for turtle in self.turtles:
             pos = self.turtles[turtle]['pos']
@@ -224,9 +235,6 @@ class Slime(gym.Env):
         cur_reward = self.rewardfunc7()
         self.observation_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
 
-        self._diffuse()
-        self._evaporate()
-
         return self.observation_space.observe(), cur_reward, False, {}
 
     def lay_pheromone(self, pos, amount):
@@ -244,13 +252,15 @@ class Slime(gym.Env):
 
         :return:
         """
+        n_size = len(self.diffuse_patches[list(self.patches.keys())[0]])  # same for every patch
         for patch in self.patches:
             p = self.patches[patch]['chemical']
+            ratio = p / n_size
             if p > 0:
-                n_size = len(self.diffuse_patches[patch])
+                #n_size = len(self.diffuse_patches[patch])
                 for n in self.diffuse_patches[patch]:
-                    self.patches[n]['chemical'] += p / (n_size + 1)
-                self.patches[patch]['chemical'] = 1 / (n_size + 1)
+                    self.patches[n]['chemical'] += ratio
+                self.patches[patch]['chemical'] = ratio
 
     def _evaporate(self):
         """
