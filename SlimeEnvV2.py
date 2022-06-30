@@ -400,7 +400,7 @@ class Slime(gym.Env):
             chem = round(self.patches[p]['chemical']) * self.shade_strength
             pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),
                              pygame.Rect(p[0] - self.offset, p[1] - self.offset, self.patch_size, self.patch_size))
-            if self.patches[p]['chemical'] > 0:
+            if self.patches[p]['chemical'] > self.sniff_threshold:
                 text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
                 self.screen.blit(text, text.get_rect(center=p))
 
