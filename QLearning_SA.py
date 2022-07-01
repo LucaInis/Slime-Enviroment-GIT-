@@ -20,7 +20,7 @@ class Boolean(gym.Space):
 width = height = 400  # SUPPONGO CHE LA GRIGLIA SIA SEMPRE UN QUADRATO
 
 episodes = 5
-ticks_per_episode = 700
+ticks_per_episode = 500
 # consigliabile almeno 500 tick_per_episode, altrimenti difficile vedere fenomeni di aggregazione
 
 
@@ -29,7 +29,8 @@ class Slime(gym.Env):
     metadata = {"render_modes": "human", "render_fps": 30}
 
     # cluster_limit = cluster_threshold
-    def __init__(self, sniff_threshold=6, step=5, cluster_limit=6, population=700):
+    def __init__(self, sniff_threshold=10, step=5, cluster_limit=6, population=700, size_turle=2):
+        self.size_turtle = size_turle
         self.sniff_threshold = sniff_threshold
         self.reward = 0
         self.reward_list = []
@@ -52,7 +53,6 @@ class Slime(gym.Env):
         for x in range(width + 1):
             for y in range(height + 1):
                 self.chemicals_level[str(x) + str(y)] = 0
-
         self.action_space = spaces.Discrete(3)
         self.observation_space = Boolean(size=2)
         self.observation = self.observation_space.sample()
@@ -229,7 +229,7 @@ class Slime(gym.Env):
         return self.observation, self.reward, False, {}
 
     def get_obs(self):
-        # controllo la presenza di feromone o meno nella patch, da spostare
+        # controllo la presenza di feromone o meno nella patch
         if self.chemicals_level[str(self.cord_learner_turtle[0]) + str(self.cord_learner_turtle[1])] != 0:
             self.observation[1] = True
         else:
@@ -250,26 +250,16 @@ class Slime(gym.Env):
         return self.observation
 
     def rewardfunc7(self):
-        self.reward = 0
-        self.count_turtle = 1
-        self.check_cord = []
-        for x in range(self.cord_learner_turtle[0] - 9, self.cord_learner_turtle[0] + 10):
-            for y in range(self.cord_learner_turtle[1] - 9, self.cord_learner_turtle[1] + 10):
-                self.check_cord.append([x, y])
-        for pair in self.cord_non_learner_turtle.values():
-            if pair in self.check_cord:
-                self.count_turtle += 1
-        if self.count_turtle >= self.cluster_limit:
+        # ho semplificato di molto la reward function per evitare comportamenti statici
+        obs = Slime.get_obs(self)
+        if obs[0] == True:
             self.count_ticks_cluster += 1
-            # calcolo la reward
-            '''self.reward = ((self.count_turtle ^ 2) / self.cluster_limit) + (
-                        (ticks_per_episode - self.count_ticks_cluster) / ticks_per_episode)'''
-            self.reward = 5 * self.count_ticks_cluster  # * self.count_turtle
+            self.reward = 10 * self.count_ticks_cluster   # assegno la reward
             self.reward_list.append(self.reward)
         else:
+            self.count_ticks_cluster = 0
             self.reward = -5  # assegno una penalty perché NON si trova in un cluster
             self.reward_list.append(self.reward)
-            self.count_ticks_cluster = 0
 
         return self.reward
 
@@ -308,10 +298,10 @@ class Slime(gym.Env):
         self.clock.tick(self.metadata["render_fps"])
 
         # Disegno LA turtle learner!
-        pygame.draw.circle(self.screen, (190, 0, 0), (self.cord_learner_turtle[0], self.cord_learner_turtle[1]), 3)
+        pygame.draw.circle(self.screen, (190, 0, 0), (self.cord_learner_turtle[0], self.cord_learner_turtle[1]), self.size_turtle)
 
         for turtle in self.cord_non_learner_turtle.values():
-            pygame.draw.circle(self.screen, (0, 190, 0), (turtle[0], turtle[1]), 3)
+            pygame.draw.circle(self.screen, (0, 190, 0), (turtle[0], turtle[1]), self.size_turtle)
         pygame.display.flip()
 
     def close(self):
@@ -327,35 +317,53 @@ env = Slime()
 # Q-Learning
 alpha = 0.1
 gamma = 0.6
-epsilon = 0.1
+epsilon = 0.9
+decay = 0.95  # di quanto diminuisce epsilon ogni episode
 
-q_table = np.zeros([500 ^ 2, env.action_space.n])
-# print(q_table)
 
+q_table = np.zeros([4, env.action_space.n])
+
+
+# NB: la fase di training dura circa 10 minuti con 16 episodi
 # TRAINING
 print("Start training...")
-state, reward, done, info = env.reset()
-state = sum(state)
-for tick in range(1000):
-    if tick == 500:
-        print("50%")
-    if random.uniform(0, 1) < epsilon:
-        action = env.action_space.sample()  # Explore action space
+for ep in range(1, 16):
+    print(f"EPISODE: {ep}")
+    print("Epsilon: ", epsilon)
+    state, reward, done, info = env.reset()
+    if sum(state) == 0:     # [False, False]
+        state = sum(state)      # 0
+    elif sum(state) == 2:       # [True, True]
+        state = 3
+    elif int(state[0]) == 1 and int(state[1]) == 0:     # [True, False] ==> si trova in un cluster ma non su una patch con feromone --> difficile succeda
+        state = 1
     else:
-        action = np.argmax(q_table[state])  # Exploit learned values
+        state = 2       # [False, True]
+    for tick in range(500):
+        if random.uniform(0, 1) < epsilon:
+            action = env.action_space.sample()  # Explore action space
+        else:
+            action = np.argmax(q_table[state])  # Exploit learned values
 
-    next_state, reward, done, info = env.moving_turtle(action)
-    next_state = sum(next_state)
+        next_state, reward, done, info = env.moving_turtle(action)
+        if sum(next_state) == 0:  # [False, False]
+            next_state = sum(next_state)  # 0
+        elif sum(next_state) == 2:  # [True, True]
+            next_state = 3
+        elif int(next_state[0]) == 1 and int(next_state[1]) == 0:  # [True, False]
+            next_state = 1
+        else:
+            next_state = 2  # [False, True]
 
-    old_value = q_table[state, action]  # (0,0) == (false, false)
-    next_max = np.max(q_table[next_state])
+        old_value = q_table[state][action]
+        next_max = np.max(q_table[state])
 
-    new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
-    q_table[state, action] = new_value
+        new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
+        q_table[state][action] = new_value
 
-    state = next_state
-
-# env.close()
+        state = next_state
+    epsilon *= decay
+    print(q_table)
 print("Training finished!\n")
 
 
@@ -371,7 +379,6 @@ for ep in range(1, episodes+1):
         state = sum(state)
         reward_episode += reward
         env.render()
-    print(reward_episode)
 env.close()
 
 print("END")
