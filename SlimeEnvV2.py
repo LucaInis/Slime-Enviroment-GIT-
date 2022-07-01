@@ -108,6 +108,8 @@ class Slime(gym.Env):
         self.fps = kwargs['FPS']
         self.shade_strength = kwargs['SHADE_STRENGTH']
         self.show_chem_text = kwargs['SHOW_CHEM_TEXT']
+        self.cluster_font_size = kwargs['CLUSTER_FONT_SIZE']
+        self.chemical_font_size = kwargs['CHEMICAL_FONT_SIZE']
 
         self.coords = []
         self.offset = self.patch_size // 2
@@ -120,8 +122,8 @@ class Slime(gym.Env):
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
         self.clock = pygame.time.Clock()
         pygame.font.init()
-        self.cluster_font = pygame.font.SysFont("arial", self.patch_size // 2)
-        self.chemical_font = pygame.font.SysFont("arial", self.patch_size // 3)
+        self.cluster_font = pygame.font.SysFont("arial", self.cluster_font_size)
+        self.chemical_font = pygame.font.SysFont("arial", self.chemical_font_size)
 
         self.rewards = []
         self.cluster_ticks = 0  # conta i tick che la turtle passa in un cluster
