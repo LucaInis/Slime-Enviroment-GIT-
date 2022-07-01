@@ -5,8 +5,10 @@ import numpy as np
 import random
 
 PARAMS_FILE = "SlimeEnvV2-params.json"
-EPISODES = 10
-LOG_EVERY = 1
+TRAIN_EPISODES = 100
+TRAIN_LOG_EVERY = 10
+TEST_EPISODES = 10
+TEST_LOG_EVERY = 1
 
 with open(PARAMS_FILE) as f:
     params = json.load(f)
@@ -20,26 +22,24 @@ decay = 0.95  # DOC di quanto diminuisce epsilon ogni episode
 
 q_table = np.zeros([4, env.action_space.n])
 
-# NB: la fase di training dura circa 10 minuti con 16 episodi
-# TRAINING
-print("Start training...")
-
 
 def state_to_int_map(obs: [bool, bool]):
     if sum(obs) == 0:  # [False, False]
-        s = sum(obs)  # 0
+        mapped = sum(obs)  # 0
     elif sum(obs) == 2:  # [True, True]
-        s = 3
+        mapped = 3
     elif int(obs[0]) == 1 and int(obs[1]) == 0:  # [True, False] ==> si trova in un cluster ma non su una patch con feromone --> difficile succeda
-        s = 1
+        mapped = 1
     else:
-        s = 2  # [False, True]
-    return s
+        mapped = 2  # [False, True]
+    return mapped
 
 
-for ep in range(1, EPISODES):
-    print(f"EPISODE: {ep}")
-    print(f"\tepsilon: {epsilon}")
+# NB: la fase di training dura circa 10 minuti con 16 episodi
+# TRAINING
+print("Start training...")
+for ep in range(1, TRAIN_EPISODES+1):
+    reward_episode = 0
     state, reward, done, info = env.reset()
     s = state_to_int_map(state)
     for tick in range(params['episode_ticks']):
@@ -50,6 +50,7 @@ for ep in range(1, EPISODES):
 
         next_state, reward, done, info = env.step(action)
         next_s = state_to_int_map(next_state)
+        reward_episode += reward
 
         old_value = q_table[s][action]
         next_max = np.max(q_table[s])
@@ -59,22 +60,27 @@ for ep in range(1, EPISODES):
 
         s = next_s
     epsilon *= decay
-    print(q_table)
+    if ep % TRAIN_LOG_EVERY == 0:
+        print(f"EPISODE: {ep}")
+        print(f"\tepsilon: {epsilon}")
+        print(f"\tq_table: {q_table}")
+        print(f"\t episode reward: {reward_episode}")
 print("Training finished!\n")
 
 
 """Evaluate agent's performance after Q-learning"""
-for ep in range(1, EPISODES+1):
+for ep in range(1, TEST_EPISODES+1):
     reward_episode = 0
     state, reward, done, info = env.reset()
     state = sum(state)
-    print(f"EPISODE: {ep}")
     for tick in range(params['episode_ticks']):
         action = np.argmax(q_table[state])
         state, reward, done, info = env.moving_turtle(action)
         state = sum(state)
         reward_episode += reward
         env.render()
+    if ep % TEST_LOG_EVERY == 0:
+        print(f"EPISODE: {ep}")
+        print(f"\t episode reward: {reward_episode}")
 env.close()
-
-print("END")
+print("Testing finished")
