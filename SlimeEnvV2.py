@@ -440,21 +440,21 @@ class Slime(gym.Env):
             pygame.quit()
 
 
-#   MAIN
-PARAMS_FILE = "SlimeEnvV2-params.json"
-EPISODES = 10
-LOG_EVERY = 10
-
-with open(PARAMS_FILE) as f:
-    params = json.load(f)
-env = Slime(render_mode="human", **params)
-
-for ep in range(1, EPISODES + 1):
-    env.reset()
-    print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
-    for tick in range(params['episode_ticks']):
-        observation, reward, done, info = env.step(env.action_space.sample())
-        if tick % LOG_EVERY == 0:
-            print(f"{tick}: {observation}, {reward}")
-        env.render()
-env.close()
+# #   MAIN
+# PARAMS_FILE = "SlimeEnvV2-params.json"
+# EPISODES = 10
+# LOG_EVERY = 10
+#
+# with open(PARAMS_FILE) as f:
+#     params = json.load(f)
+# env = Slime(render_mode="human", **params)
+#
+# for ep in range(1, EPISODES + 1):
+#     env.reset()
+#     print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
+#     for tick in range(params['episode_ticks']):
+#         observation, reward, done, info = env.step(env.action_space.sample())
+#         if tick % LOG_EVERY == 0:
+#             print(f"{tick}: {observation}, {reward}")
+#         env.render()
+# env.close()
