@@ -195,19 +195,17 @@ class Slime(gym.Env):
         :return:
         """
         if x < 0:
-            x = self.W_pixels - self.offset
+            x = self.W_pixels + x
         elif x > self.W_pixels:
-            x = 0 + self.offset
+            x = x - self.W_pixels
         if y < 0:
-            y = self.H_pixels - self.offset
+            y = self.H_pixels + y
         elif y > self.H_pixels:
-            y = 0 + self.offset
+            y = y - self.H_pixels
         return x, y
 
     def step(self, action: int):
         # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
-        self._evaporate()
-        self._diffuse()
 
         # non learners act
         for turtle in self.turtles:
@@ -221,7 +219,7 @@ class Slime(gym.Env):
                 self.walk(t, turtle)
             # self.walk(self.non_learner_pos[turtle])
 
-            self.lay_pheromone(pos, self.lay_amount)
+            self.lay_pheromone(self.turtles[turtle]['pos'], self.lay_amount)
 
         # learner acts
         if action == 0:  # DOC walk
@@ -234,6 +232,9 @@ class Slime(gym.Env):
                 self.follow_pheromone(max_coords, self.learner, -1)
             else:
                 self.walk(self.learner, -1)
+
+        self._diffuse()
+        self._evaporate()
 
         cur_reward = self.rewardfunc7()
         self.observation_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
@@ -332,14 +333,17 @@ class Slime(gym.Env):
         :return: the maximum pheromone level found and its x,y position
         """
         max_ph = -1
-        max_pos = pos
+        max_pos = [pos]
         for p in self.smell_patches[pos]:
             chem = self.patches[p]['chemical']
             if chem > max_ph:
                 max_ph = chem
-                max_pos = p
+                max_pos = [p]
+            elif chem == max_ph:
+                max_pos.append(p)
+        winner = max_pos[np.random.choice(len(max_pos))]
 
-        return max_ph, max_pos
+        return max_ph, winner
 
     def _compute_cluster(self):
         """
@@ -440,21 +444,21 @@ class Slime(gym.Env):
             pygame.quit()
 
 
-# #   MAIN
-# PARAMS_FILE = "SlimeEnvV2-params.json"
-# EPISODES = 10
-# LOG_EVERY = 10
-#
-# with open(PARAMS_FILE) as f:
-#     params = json.load(f)
-# env = Slime(render_mode="human", **params)
-#
-# for ep in range(1, EPISODES + 1):
-#     env.reset()
-#     print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
-#     for tick in range(params['episode_ticks']):
-#         observation, reward, done, info = env.step(env.action_space.sample())
-#         if tick % LOG_EVERY == 0:
-#             print(f"{tick}: {observation}, {reward}")
-#         env.render()
-# env.close()
+if __name__ == "__main__":
+    PARAMS_FILE = "SlimeEnvV2-params.json"
+    EPISODES = 1
+    LOG_EVERY = 10
+
+    with open(PARAMS_FILE) as f:
+        params = json.load(f)
+    env = Slime(render_mode="human", **params)
+
+    for ep in range(1, EPISODES + 1):
+        env.reset()
+        print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
+        for tick in range(params['episode_ticks']):
+            observation, reward, done, info = env.step(env.action_space.sample())
+            if tick % LOG_EVERY == 0:
+                print(f"{tick}: {observation}, {reward}")
+            env.render()
+    env.close()

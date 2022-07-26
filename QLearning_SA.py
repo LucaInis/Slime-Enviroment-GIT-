@@ -65,7 +65,7 @@ for ep in range(1, TRAIN_EPISODES+1):
         print(f"EPISODE: {ep}")
         print(f"\tepsilon: {epsilon}")
         print(f"\tq_table: {q_table}")
-        print(f"\t episode reward: {reward_episode}")
+        print(f"\tepisode reward: {reward_episode}")
 print("Training finished!\n")
 
 
