@@ -95,6 +95,7 @@ class Slime(gym.Env):
         self.lay_area = kwargs['lay_area']
         self.lay_amount = kwargs['lay_amount']
         self.evaporation = kwargs['evaporation']
+        self.env_rng = kwargs['ENV_RNG']
         self.cluster_threshold = kwargs['cluster_threshold']
         self.cluster_radius = kwargs['cluster_radius']
         self.reward = kwargs['rew']
@@ -257,12 +258,17 @@ class Slime(gym.Env):
         :return:
         """
         n_size = len(self.diffuse_patches[list(self.patches.keys())[0]])  # same for every patch
-        for patch in self.patches:
+        patch_keys = list(self.patches.keys())
+        if self.env_rng:
+            random.shuffle(patch_keys)
+        for patch in patch_keys:
             p = self.patches[patch]['chemical']
             ratio = p / n_size
             if p > 0:
-                #n_size = len(self.diffuse_patches[patch])
-                for n in self.diffuse_patches[patch]:
+                diffuse_keys = self.diffuse_patches[patch][:]
+                if self.env_rng:
+                    random.shuffle(diffuse_keys)
+                for n in diffuse_keys:
                     self.patches[n]['chemical'] += ratio
                 self.patches[patch]['chemical'] = ratio
 
@@ -271,7 +277,10 @@ class Slime(gym.Env):
 
         :return:
         """
-        for patch in self.patches:
+        patch_keys = list(self.patches.keys())
+        if self.env_rng:
+            random.shuffle(patch_keys)
+        for patch in patch_keys:
             if self.patches[patch]['chemical'] > 0:
                 self.patches[patch]['chemical'] *= self.evaporation
 

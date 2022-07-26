@@ -1,13 +1,13 @@
 {
-  "population": 2,
+  "population": 50,
   "sniff_threshold": 1,
-  "diffuse_area": 1,
-  "smell_area": 1,
+  "diffuse_area": 2,
+  "smell_area": 3,
   "lay_area": 1,
-  "lay_amount": 9,
-  "evaporation": 1,
+  "lay_amount": 3,
+  "evaporation": 0.9,
   "cluster_threshold": 30,
-  "cluster_radius": 10,
+  "cluster_radius": 7,
   "rew": 100,
   "penalty": -1,
   "episode_ticks": 250,
@@ -19,5 +19,6 @@
   "SHADE_STRENGTH": 3,
   "SHOW_CHEM_TEXT": true,
   "CLUSTER_FONT_SIZE": 12,
-  "CHEMICAL_FONT_SIZE": 8
+  "CHEMICAL_FONT_SIZE": 8,
+  "ENV_RNG": false
 }
