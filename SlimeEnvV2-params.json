@@ -1,11 +1,12 @@
 {
-  "population": 50,
+  "population": 10,
   "sniff_threshold": 1,
   "diffuse_area": 2,
-  "smell_area": 3,
-  "lay_area": 1,
-  "lay_amount": 3,
-  "evaporation": 0.9,
+  "diffusion_mode": "rng-filter",
+  "smell_area": 1,
+  "lay_area": 0,
+  "lay_amount": 9,
+  "evaporation": 1,
   "cluster_threshold": 30,
   "cluster_radius": 7,
   "rew": 100,
@@ -16,9 +17,8 @@
   "PATCH_SIZE": 20,
   "TURTLE_SIZE": 16,
   "FPS": 30,
-  "SHADE_STRENGTH": 3,
+  "SHADE_STRENGTH": 10,
   "SHOW_CHEM_TEXT": true,
   "CLUSTER_FONT_SIZE": 12,
-  "CHEMICAL_FONT_SIZE": 8,
-  "ENV_RNG": false
+  "CHEMICAL_FONT_SIZE": 8
 }

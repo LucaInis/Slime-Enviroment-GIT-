@@ -1,4 +1,5 @@
 import json
+import sys
 from typing import Optional
 
 import gym
@@ -95,7 +96,7 @@ class Slime(gym.Env):
         self.lay_area = kwargs['lay_area']
         self.lay_amount = kwargs['lay_amount']
         self.evaporation = kwargs['evaporation']
-        self.env_rng = kwargs['ENV_RNG']
+        self.diffusion_mode = kwargs['diffusion_mode']  # DOC 'simple', 'rng', 'sorted', 'filter'
         self.cluster_threshold = kwargs['cluster_threshold']
         self.cluster_radius = kwargs['cluster_radius']
         self.reward = kwargs['rew']
@@ -259,15 +260,24 @@ class Slime(gym.Env):
         """
         n_size = len(self.diffuse_patches[list(self.patches.keys())[0]])  # same for every patch
         patch_keys = list(self.patches.keys())
-        if self.env_rng:
+        if self.diffusion_mode == 'rng':
+            random.shuffle(patch_keys)
+        elif self.diffusion_mode == 'sorted':
+            patch_list = list(self.patches.items())
+            patch_list = sorted(patch_list, key=lambda t: t[1]['chemical'], reverse=True)
+            patch_keys = [t[0] for t in patch_list]
+        elif self.diffusion_mode == 'filter':
+            patch_keys = [k for k in self.patches if self.patches[k]['chemical'] > 0]
+        elif self.diffusion_mode == 'rng-filter':
+            patch_keys = [k for k in self.patches if self.patches[k]['chemical'] > 0]
             random.shuffle(patch_keys)
         for patch in patch_keys:
             p = self.patches[patch]['chemical']
             ratio = p / n_size
             if p > 0:
                 diffuse_keys = self.diffuse_patches[patch][:]
-                if self.env_rng:
-                    random.shuffle(diffuse_keys)
+                #if self.diffusion_mode == 'rng':  # QUESTION does it make sense to also sort destination patches??
+                    #random.shuffle(diffuse_keys)
                 for n in diffuse_keys:
                     self.patches[n]['chemical'] += ratio
                 self.patches[patch]['chemical'] = ratio
@@ -277,10 +287,7 @@ class Slime(gym.Env):
 
         :return:
         """
-        patch_keys = list(self.patches.keys())
-        if self.env_rng:
-            random.shuffle(patch_keys)
-        for patch in patch_keys:
+        for patch in self.patches.keys():
             if self.patches[patch]['chemical'] > 0:
                 self.patches[patch]['chemical'] *= self.evaporation
 
@@ -371,7 +378,7 @@ class Slime(gym.Env):
         :return: a boolean
         """
         return self.patches[self.learner['pos']][
-                   'chemical'] > self.sniff_threshold  # QUESTION should we use self.sniff_threshold here?
+                   'chemical'] >= self.sniff_threshold  # QUESTION should we use self.sniff_threshold here?
 
     def rewardfunc7(self):
         """
@@ -427,7 +434,7 @@ class Slime(gym.Env):
             pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),
                              pygame.Rect(p[0] - self.offset, p[1] - self.offset, self.patch_size, self.patch_size))
             if self.show_chem_text:
-                if self.patches[p]['chemical'] > self.sniff_threshold:
+                if not sys.gettrace() is None or self.patches[p]['chemical'] >= self.sniff_threshold:
                     text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
                     self.screen.blit(text, text.get_rect(center=p))
 
