@@ -97,6 +97,7 @@ class Slime(gym.Env):
         self.lay_amount = kwargs['lay_amount']
         self.evaporation = kwargs['evaporation']
         self.diffusion_mode = kwargs['diffusion_mode']  # DOC 'simple', 'rng', 'sorted', 'filter'
+        self.follow_mode = kwargs['follow_mode']  # DOC 'det', 'prob'
         self.cluster_threshold = kwargs['cluster_threshold']
         self.cluster_radius = kwargs['cluster_radius']
         self.reward = kwargs['rew']
@@ -348,16 +349,19 @@ class Slime(gym.Env):
         :param pos: the x,y position of the turtle looking for pheromone
         :return: the maximum pheromone level found and its x,y position
         """
-        max_ph = -1
-        max_pos = [pos]
-        for p in self.smell_patches[pos]:
-            chem = self.patches[p]['chemical']
-            if chem > max_ph:
-                max_ph = chem
-                max_pos = [p]
-            elif chem == max_ph:
-                max_pos.append(p)
-        winner = max_pos[np.random.choice(len(max_pos))]
+        if self.follow_mode == "prob":
+            pass
+        else:
+            max_ph = -1
+            max_pos = [pos]
+            for p in self.smell_patches[pos]:
+                chem = self.patches[p]['chemical']
+                if chem > max_ph:
+                    max_ph = chem
+                    max_pos = [p]
+                elif chem == max_ph:
+                    max_pos.append(p)
+            winner = max_pos[np.random.choice(len(max_pos))]
 
         return max_ph, winner
 
