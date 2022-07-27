@@ -350,7 +350,13 @@ class Slime(gym.Env):
         :return: the maximum pheromone level found and its x,y position
         """
         if self.follow_mode == "prob":
-            pass
+            population = [k for k in self.smell_patches[pos]]
+            weights = [self.patches[k]['chemical'] for k in self.smell_patches[pos]]
+            if all([w == 0 for w in weights]):
+                winner = population[np.random.choice(len(population))]
+            else:
+                winner = random.choices(population, weights=weights, k=1)[0]
+            max_ph = self.patches[winner]['chemical']
         else:
             max_ph = -1
             max_pos = [pos]

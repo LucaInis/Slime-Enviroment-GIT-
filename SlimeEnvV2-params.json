@@ -1,10 +1,10 @@
 {
   "population": 50,
   "sniff_threshold": 0.9,
-  "diffuse_area": 1,
+  "diffuse_area": 2,
   "diffusion_mode": "filter",
   "follow_mode": "prob",
-  "smell_area": 3,
+  "smell_area": 4,
   "lay_area": 1,
   "lay_amount": 3,
   "evaporation": 0.9,
