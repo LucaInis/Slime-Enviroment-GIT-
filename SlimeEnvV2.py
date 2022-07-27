@@ -70,6 +70,14 @@ class Slime(gym.Env):
         :param sniff_threshold:     Controls how sensitive slimes are to pheromone (higher values make slimes less
                                     sensitive to pheromone)—unclear effect on learning, could be negligible
         :param diffuse_area         Controls the diffusion radius
+        :param diffuse_mode         Controls in which order patches with pheromone to diffuse are visited:
+                                        'simple' = Python-dependant (dict keys "ordering")
+                                        'rng' = random visiting
+                                        'sorted' = diffuse first the patches with more pheromone
+                                        'filter' = do not re-diffuse patches receiving pheromone due to diffusion
+        :param follow_mode          Controls how non-learning agents follow pheromone:
+                                        'det' = follow greatest pheromone
+                                        'prob' = follow greatest pheromone probabilistically (pheromone strength as weight)
         :param smell_area:          Controls the radius of the square area sorrounding the turtle whithin which it smells pheromone
         :param lay_area:            Controls the radius of the square area sorrounding the turtle where pheromone is laid
         :param lay_amount:          Controls how much pheromone is laid
@@ -85,6 +93,15 @@ class Slime(gym.Env):
         :param rew:                 Base reward for being in a cluster
         :param penalty:             Base penalty for not being in a cluster
         :param episode_ticks:       Number of ticks for episode termination
+        :param W:                   Window width in # patches
+        :param H:                   Window height in # patches
+        :param PATCH_SIZE:          Patch size in pixels
+        :param TURTLE_SIZE:         Turtle size in pixels
+        :param FPS:                 Rendering FPS
+        :param SHADE_STRENGTH:      Strength of color shading for pheromone rendering (higher -> brighter color)
+        :param SHOW_CHEM_TEXT:      Whether to show pheromone amount on patches (when >= sniff-threshold)
+        :param CLUSTER_FONT_SIZE:   Font size of cluster number (for overlapping agents)
+        :param CHEMICAL_FONT_SIZE:  Font size of phermone amount (if SHOW_CHEM_TEXT is true)
         :param render_mode:
         """
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -96,8 +113,8 @@ class Slime(gym.Env):
         self.lay_area = kwargs['lay_area']
         self.lay_amount = kwargs['lay_amount']
         self.evaporation = kwargs['evaporation']
-        self.diffusion_mode = kwargs['diffusion_mode']  # DOC 'simple', 'rng', 'sorted', 'filter'
-        self.follow_mode = kwargs['follow_mode']  # DOC 'det', 'prob'
+        self.diffuse_mode = kwargs['diffuse_mode']  # TODO 'cascade' (stpe-by-step diffusion within 'diffuse_area')
+        self.follow_mode = kwargs['follow_mode']
         self.cluster_threshold = kwargs['cluster_threshold']
         self.cluster_radius = kwargs['cluster_radius']
         self.reward = kwargs['rew']
@@ -261,15 +278,15 @@ class Slime(gym.Env):
         """
         n_size = len(self.diffuse_patches[list(self.patches.keys())[0]])  # same for every patch
         patch_keys = list(self.patches.keys())
-        if self.diffusion_mode == 'rng':
+        if self.diffuse_mode == 'rng':
             random.shuffle(patch_keys)
-        elif self.diffusion_mode == 'sorted':
+        elif self.diffuse_mode == 'sorted':
             patch_list = list(self.patches.items())
             patch_list = sorted(patch_list, key=lambda t: t[1]['chemical'], reverse=True)
             patch_keys = [t[0] for t in patch_list]
-        elif self.diffusion_mode == 'filter':
+        elif self.diffuse_mode == 'filter':
             patch_keys = [k for k in self.patches if self.patches[k]['chemical'] > 0]
-        elif self.diffusion_mode == 'rng-filter':
+        elif self.diffuse_mode == 'rng-filter':
             patch_keys = [k for k in self.patches if self.patches[k]['chemical'] > 0]
             random.shuffle(patch_keys)
         for patch in patch_keys:
