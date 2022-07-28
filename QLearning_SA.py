@@ -15,8 +15,8 @@ with open(PARAMS_FILE) as f:
 env = Slime(render_mode="human", **params)
 
 # Q-Learning
-alpha = 0.25  # DOC learning rate (0 learn nothing 1 learn suddenly)
-gamma = 0.75  # DOC discount factor (0 care only bout immediate rewards, 1 care only about future ones)
+alpha = 0.5  # DOC learning rate (0 learn nothing 1 learn suddenly)
+gamma = 0.8  # DOC discount factor (0 care only bout immediate rewards, 1 care only about future ones)
 epsilon = 0.9  # DOC chance of random action
 decay = 0.99  # DOC di quanto diminuisce epsilon ogni episode
 
@@ -24,18 +24,17 @@ q_table = np.zeros([4, env.action_space.n])
 
 
 def state_to_int_map(obs: [bool, bool]):
-    if sum(obs) == 0:  # [False, False]
+    if sum(obs) == 0:  # DOC [False, False]
         mapped = sum(obs)  # 0
-    elif sum(obs) == 2:  # [True, True]
+    elif sum(obs) == 2:  # DOC [True, True]
         mapped = 3
-    elif int(obs[0]) == 1 and int(obs[1]) == 0:  # [True, False] ==> si trova in un cluster ma non su una patch con feromone --> difficile succeda
+    elif int(obs[0]) == 1 and int(obs[1]) == 0:  # DOC [True, False] ==> si trova in un cluster ma non su una patch con feromone --> difficile succeda
         mapped = 1
     else:
-        mapped = 2  # [False, True]
+        mapped = 2  # DOC [False, True]
     return mapped
 
 
-# NB: la fase di training dura circa 10 minuti con 16 episodi
 # TRAINING
 print("Start training...")
 for ep in range(1, TRAIN_EPISODES+1):
@@ -68,8 +67,8 @@ for ep in range(1, TRAIN_EPISODES+1):
         print(f"\tepisode reward: {reward_episode}")
 print("Training finished!\n")
 
-
-"""Evaluate agent's performance after Q-learning"""
+# DOC Evaluate agent's performance after Q-learning
+print("Start testing...")
 for ep in range(1, TEST_EPISODES+1):
     reward_episode = 0
     state, reward, done, info = env.reset()
@@ -82,6 +81,6 @@ for ep in range(1, TEST_EPISODES+1):
         env.render()
     if ep % TEST_LOG_EVERY == 0:
         print(f"EPISODE: {ep}")
-        print(f"\t episode reward: {reward_episode}")
+        print(f"\tepisode reward: {reward_episode}")
 env.close()
-print("Testing finished")
+print("Testing finished!")
