@@ -5,8 +5,8 @@ import numpy as np
 import random
 
 PARAMS_FILE = "SlimeEnvV2-params.json"
-TRAIN_EPISODES = 100
-TRAIN_LOG_EVERY = 10
+TRAIN_EPISODES = 1000
+TRAIN_LOG_EVERY = 25
 TEST_EPISODES = 10
 TEST_LOG_EVERY = 1
 
@@ -18,7 +18,7 @@ env = Slime(render_mode="human", **params)
 alpha = 0.5  # DOC learning rate (0 learn nothing 1 learn suddenly)
 gamma = 0.8  # DOC discount factor (0 care only bout immediate rewards, 1 care only about future ones)
 epsilon = 0.9  # DOC chance of random action
-decay = 0.99  # DOC di quanto diminuisce epsilon ogni episode
+decay = 0.995  # DOC di quanto diminuisce epsilon ogni episode
 
 q_table = np.zeros([4, env.action_space.n])
 

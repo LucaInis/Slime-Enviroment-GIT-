@@ -161,7 +161,10 @@ class Slime(gym.Env):
         self._find_neighbours(self.lay_patches, self.lay_area)
         # DOC {(x,y): [(x,y), ..., (x,y)]} pre-computed diffusion area for each patch, including itself
         self.diffuse_patches = {}
-        self._find_neighbours(self.diffuse_patches, self.diffuse_area)
+        if self.diffuse_mode == 'cascade':
+            self._find_neighbours_cascade(self.diffuse_patches, self.diffuse_area)
+        else:
+            self._find_neighbours(self.diffuse_patches, self.diffuse_area)
         # DOC {(x,y): [(x,y), ..., (x,y)]} pre-computed cluster-check for each patch, including itself
         self.cluster_patches = {}
         self._find_neighbours(self.cluster_patches, self.cluster_radius)
@@ -180,6 +183,42 @@ class Slime(gym.Env):
         self.cluster_ticks = 0
 
         self.first_gui = True
+
+    def _find_neighbours_cascade(self, neighbours: dict, area: int):
+        """
+        For each patch, find neighbouring patches within square radius 'area', 1 step at a time
+        (visiting first 1-hop patches, then 2-hops patches, and so on)
+
+        :param neighbours: empty dictionary to fill
+            (will be dict mapping each patch to list of neighouring patches {(x, y): [(nx, ny), ...], ...})
+        :param area: integer representing the number of patches to consider in the 8 directions around each patch
+        :return: None (1st argument modified as side effect)
+        """
+        for p in self.patches:
+            neighbours[p] = []
+            for ring in range(area):
+                for x in range(p[0] + (ring * self.patch_size), p[0] + ((ring + 1) * self.patch_size) + 1, self.patch_size):
+                    for y in range(p[1] + (ring * self.patch_size), p[1] + ((ring + 1) * self.patch_size) + 1, self.patch_size):
+                        #x, y = self._wrap(x, y)
+                        if (x, y) not in neighbours[p]:
+                            neighbours[p].append((x, y))
+                for x in range(p[0] + (ring * self.patch_size), p[0] - ((ring + 1) * self.patch_size) - 1, -self.patch_size):
+                    for y in range(p[1] + (ring * self.patch_size), p[1] - ((ring + 1) * self.patch_size) - 1, -self.patch_size):
+                        #x, y = self._wrap(x, y)
+                        if (x, y) not in neighbours[p]:
+                            neighbours[p].append((x, y))
+                for x in range(p[0] + (ring * self.patch_size), p[0] + ((ring + 1) * self.patch_size) + 1, self.patch_size):
+                    for y in range(p[1] + (ring * self.patch_size), p[1] - ((ring + 1) * self.patch_size) - 1, -self.patch_size):
+                        #x, y = self._wrap(x, y)
+                        if (x, y) not in neighbours[p]:
+                            neighbours[p].append((x, y))
+                for x in range(p[0] + (ring * self.patch_size), p[0] - ((ring + 1) * self.patch_size) - 1, -self.patch_size):
+                    for y in range(p[1] + (ring * self.patch_size), p[1] + ((ring + 1) * self.patch_size) + 1, self.patch_size):
+                        #x, y = self._wrap(x, y)
+                        if (x, y) not in neighbours[p]:
+                            neighbours[p].append((x, y))
+            neighbours[p] = [self._wrap(x, y) for (x, y) in neighbours[p]]
+            #neighbours[p] = list(set(neighbours[p]))
 
     def _find_neighbours(self, neighbours: dict, area: int):
         """
