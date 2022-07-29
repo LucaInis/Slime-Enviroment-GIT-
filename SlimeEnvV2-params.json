@@ -1,7 +1,7 @@
 {
   "population": 50,
   "sniff_threshold": 0.9,
-  "diffuse_area": 2,
+  "diffuse_area": 3,
   "diffuse_mode": "cascade",
   "follow_mode": "prob",
   "smell_area": 1,
