@@ -551,8 +551,8 @@ class Slime(gym.Env):
 
 if __name__ == "__main__":
     PARAMS_FILE = "SlimeEnvV2-params.json"
-    EPISODES = 2
-    LOG_EVERY = 10
+    EPISODES = 5
+    LOG_EVERY = 1
 
     with open(PARAMS_FILE) as f:
         params = json.load(f)

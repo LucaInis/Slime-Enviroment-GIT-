@@ -4,7 +4,7 @@
   "diffuse_area": 3,
   "diffuse_mode": "cascade",
   "follow_mode": "prob",
-  "smell_area": 1,
+  "smell_area": 3,
   "lay_area": 1,
   "lay_amount": 3,
   "evaporation": 0.9,

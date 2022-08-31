@@ -5,8 +5,8 @@ import numpy as np
 import random
 
 PARAMS_FILE = "SlimeEnvV2-params.json"
-TRAIN_EPISODES = 1000
-TRAIN_LOG_EVERY = 25
+TRAIN_EPISODES = 1500
+TRAIN_LOG_EVERY = 50
 TEST_EPISODES = 10
 TEST_LOG_EVERY = 1
 
