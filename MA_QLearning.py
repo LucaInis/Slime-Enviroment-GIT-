@@ -11,7 +11,6 @@ from pettingzoo.utils import agent_selector
 import numpy as np
 import random
 
-
 BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
@@ -129,18 +128,18 @@ class Slime(AECEnv):
         self.cluster_font = pygame.font.SysFont("arial", self.patch_size // 2)
         self.chemical_font = pygame.font.SysFont("arial", self.patch_size // 3)
 
-        self.agents = [i for i in range(self.learner_population)]
+        self.agents = [i for i in range(self.population, self.population+self.learner_population)]
         # inizializzo il selettore
         self._agent_selector = agent_selector(self.agents)
 
-        self.rewards = {i: [] for i in range(self.learner_population)}
-        self.cluster_ticks = {i: 0 for i in range(self.learner_population)}
+        self.rewards = {i: [] for i in range(self.population, self.population+self.learner_population)}
+        self.cluster_ticks = {i: 0 for i in range(self.population, self.population+self.learner_population)}
 
         self.first_gui = True
 
         n_coords = len(self.coords)
         # create learners turtle
-        self.learners = {i: {"pos": self.coords[np.random.randint(n_coords)]} for i in range(self.learner_population)}
+        self.learners = {i: {"pos": self.coords[np.random.randint(n_coords)]} for i in range(self.population, self.population+self.learner_population)}
         # create NON learner turtles
         self.turtles = {i: {"pos": self.coords[np.random.randint(n_coords)]} for i in range(self.population)}
 
@@ -219,7 +218,7 @@ class Slime(AECEnv):
         if action == 0:  # DOC walk
             self.walk(self.learners[agent], agent)
         elif action == 1:  # DOC lay_pheromone
-            self.lay_pheromone(self.learners[agent]['pos'], self.lay_amount)
+            self.lay_pheromone(self.learners[agent]['pos'], 100)
         elif action == 2:  # DOC follow_pheromone
             max_pheromone, max_coords = self._find_max_pheromone(self.learners[agent]['pos'])
             if max_pheromone >= self.sniff_threshold:
@@ -231,8 +230,8 @@ class Slime(AECEnv):
 
     # non learners act
     def moving(self):
-        # DOC action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
-        # self._evaporate()
+        # DOC action: 0 = walk, 1 = don't move
+        self._evaporate()
         self._diffuse()
 
         for turtle in self.turtles:
@@ -252,7 +251,7 @@ class Slime(AECEnv):
         self.agent = agent
         self.obs_dict[self.agent][0] = self._compute_cluster(self.agent) >= self.cluster_threshold
         self.obs_dict[self.agent][1] = self._check_chemical(self.agent)
-        cur_reward = self.rewardfunc2(self.agent)
+        cur_reward = self.rewardfunc7(self.agent)
         return self.obs_dict[self.agent], cur_reward, False, {}
 
     def lay_pheromone(self, pos, amount):
@@ -368,15 +367,34 @@ class Slime(AECEnv):
 
     def avg_cluster(self):
         """
-        Checks every patch and records his size, if > 'cluster_threshold' then record it
+        Record the cluster size
         :return: avg cluster size
         """
-        cluster_size = []
-        for p in self.patches.values():
-            if len(p['turtles']) > self.cluster_threshold:
-                cluster_size.append(len(p['turtles']))
+        cluster_sizes = []  # registra la dim. dei cluster
+        for l in self.learners:
+            cluster = []  # tiene conto di quali turtle sono in quel cluster
+            for p in self.cluster_patches[self.learners[l]['pos']]:
+                for t in self.patches[p]['turtles']:
+                    cluster.append(t)
+            cluster.sort()
+            if cluster not in cluster_sizes:
+                cluster_sizes.append(cluster)
 
-        return sum(cluster_size)/len(cluster_size)
+        # cleaning process: confornta i cluster (nello stesso episodio) e se ne trova 2 con più del 85% di turtle uguali ne elimina 1
+        for cluster in cluster_sizes:
+            for cl in cluster_sizes:
+                if cl != cluster:
+                    intersection = list(set(cluster) & set(cl))
+                    if len(intersection) > len(cluster) * 0.90:
+                        cluster_sizes.remove(cl)
+
+        # calcolo avg_cluster_size
+        somma = 0
+        for cluster in cluster_sizes:
+            somma += len(cluster)
+        avg_cluster_size = somma / len(cluster_sizes)
+
+        return avg_cluster_size
 
     def _check_chemical(self, agent):
         """
@@ -439,7 +457,10 @@ class Slime(AECEnv):
                 chem = p['chemical']
 
         cluster = self._compute_cluster(self.agent)
-        self.cur_reward = chem * cluster
+        if cluster > self.cluster_threshold:
+            self.cur_reward = chem * cluster
+        else:
+            self.cur_reward = 0
 
         self.rewards[self.agent].append(self.cur_reward)
         return self.cur_reward
@@ -481,8 +502,8 @@ class Slime(AECEnv):
 
     def reset(self):
         # empty stuff
-        self.rewards = {i: [] for i in range(self.learner_population)}
-        self.cluster_ticks = {i: 0 for i in range(self.learner_population)}
+        self.rewards = {i: [] for i in range(self.population, self.population+self.learner_population)}
+        self.cluster_ticks = {i: 0 for i in range(self.population, self.population+self.learner_population)}
         self.obs_dict = {a: self.observation_spaces.change_all(False) for a in self.agents}
         # re-position learner turtle
         for l in self.learners:
@@ -547,37 +568,35 @@ class Slime(AECEnv):
 
 #   MAIN
 PARAMS_FILE = "SlimeEnvV2-params.json"
-EPISODES = 30
-LOG_EVERY = 10
 
 with open(PARAMS_FILE) as f:
     params = json.load(f)
 env = Slime(render_mode="human", **params)
 
-# Q-Learning
-alpha = 0.1
-gamma = 0.6
+# parametri
+alpha = 0.1  # learning rate
+gamma = 0.9  # discount factor
 epsilon = 0.9
-decay = 0.97  # di quanto diminuisce epsilon ogni episode
+decay = 0.995  # di quanto diminuisce epsilon ogni episode
 
-# creo la Q_table
-d_qtable = {i: np.zeros([4, 3]) for i in range(params['learner_population'])}
-
+# Q_table
+d_qtable = {i: np.zeros([4, 3]) for i in range(params['population'], params['population']+params['learner_population'])}
+'''
 # dict che tiene conto della frequenza di scelta delle action di ogni agent per ogni episodio
-action_dict = {'EPISODE_'+str(ep): {'AGENT_'+str(ag): {'ACTION_'+str(ac): 0 for ac in range(3)} for ag in range(params['learner_population'])} for ep in range(1, EPISODES+1)}
-# dict che tiene conto della reward accumulata di ogni agent per ogni episodio
-reward_dict = {'EPISODE_'+str(ep): {'AGENT_'+str(a): 0 for a in range(params['learner_population'])} for ep in range(1, EPISODES+1)}
+action_dict = {'EPISODE_'+str(ep): {'AGENT_'+str(ag): {'ACTION_'+str(ac): 0 for ac in range(3)} for ag in range(params['population'], params['population']+params['learner_population'])} for ep in range(1, params['episodes']+1)}
+# dict che tiene conto della reward totale accumulata per ogni episodio
+reward_dict = {'EPISODE_'+str(ep): 0 for ep in range(1, params['episodes']+1)}
 # dict che tiene conto dela dimensioni di ogni cluster per ogni episodio
-#cluster_dict = {'EPISODE_'+str(ep): 0 for ep in range(1, EPISODES+1)}
-cluster_dict = {}
+cluster_dict = {}'''
 
-# TRAINING
+
+'''Training'''
 print("Start training...")
-for ep in range(1, EPISODES+1):
+for ep in range(1, params['episodes']+1):
     env.reset()
-    # print("Epsilon: ", epsilon)
+    print("Epsilon: ", epsilon)
     print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
-    for tick in range(400):
+    for tick in range(500):
         env.moving()
         for agent in env.agent_iter(max_iter=params['learner_population']):
             state, reward, done, info = env.last(agent)  # get observation (state) for current agent
@@ -587,21 +606,22 @@ for ep in range(1, EPISODES+1):
                 state = sum(state)  # 0
             elif sum(state) == 2:  # [True, True]
                 state = 3
-            elif int(state[0]) == 1 and int(state[1]) == 0:  # [True, False] ==> si trova in un cluster ma non su una patch con feromone --> difficile succeda
+            elif int(state[0]) == 1 and int(state[1]) == 0:
+                # [True, False] ==> si trova in un cluster ma non su una patch con feromone --> difficile succeda
                 state = 1
             else:
                 state = 2  # [False, True]
 
-            if random.uniform(0, 1) < epsilon:
-                action = np.random.randint(0, 3)  # Explore action space
+            if random.uniform(0, 3) < epsilon:
+                action = np.random.randint(0, 2)  # Explore action space
             else:
                 action = np.argmax(d_qtable[agent][state])  # Exploit learned values
 
-            # action_dict['EPISODE_'+str(ep)]['AGENT_'+str(agent)]['ACTION_'+str(action)] += 1
+            action_dict['EPISODE_'+str(ep)]['AGENT_'+str(agent)]['ACTION_'+str(action)] += 1
             env.step(action)
 
             next_state, reward, done, info = env.last(agent)  # get observation (state) for current agent
-            reward_dict['EPISODE_'+str(ep)]['AGENT_'+str(agent)] += reward
+            reward_dict['EPISODE_'+str(ep)] += round(reward, 1)
 
             if sum(next_state) == 0:  # [False, False]
                 next_state = sum(next_state)  # 0
@@ -618,24 +638,14 @@ for ep in range(1, EPISODES+1):
             new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
             d_qtable[agent][state][action] = new_value
             state = next_state
-
-    m = env.avg_cluster()
-    cluster_dict['EPISODE_'+str(ep)] = m
+        env.render()
+    cluster_dict['EPISODE_'+str(ep)] = env.avg_cluster()
     epsilon *= decay
-
-'''
-for ep in action_dict.values():
-    print(ep)
-for ep in reward_dict.values():
-    print(ep['AGENT_0']/params['episode_ticks'])  # ???
-for ep in cluster_dict.values():
-    print(ep) 
-'''
-
+print(cluster_dict)
 print("Training finished!\n")
 
-"""Evaluate agent's performance after Q-learning"""
-for ep in range(1, EPISODES + 1):
+'''Evaluate agent's performance after Q-learning'''
+for ep in range(1, params['episodes']+1):
     env.reset()
     print(f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
     for tick in range(params['episode_ticks']):
