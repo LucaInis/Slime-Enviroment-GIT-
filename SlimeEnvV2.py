@@ -303,7 +303,7 @@ class Slime(gym.Env):
         self._diffuse()
         self._evaporate()
 
-        cur_reward = self.reward_cluster_size_and_time()
+        cur_reward = self.reward_cluster_and_time_punish_time()
         self.observation_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
 
         return self.observation_space.observe(), cur_reward, False, {}
@@ -468,7 +468,7 @@ class Slime(gym.Env):
         return self.patches[self.learner['pos']][
                    'chemical'] >= self.sniff_threshold
 
-    def reward_cluster_size_and_time(self):
+    def reward_cluster_punish_time(self):
         """
         Reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside
         clusters
@@ -481,6 +481,22 @@ class Slime(gym.Env):
 
         cur_reward = ((cluster ^ 2) / self.cluster_threshold) * self.reward + (
                 ((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
+
+        self.rewards.append(cur_reward)
+        return cur_reward
+
+    def reward_cluster_and_time_punish_time(self):
+        """
+
+        :return:
+        """
+        cluster = self._compute_cluster()
+        if cluster >= self.cluster_threshold:
+            self.cluster_ticks += 1
+
+        cur_reward = (self.cluster_ticks / self.episode_ticks) * self.reward + \
+                     (cluster / self.cluster_threshold) * (self.reward ** 2) + \
+                     (((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
 
         self.rewards.append(cur_reward)
         return cur_reward
