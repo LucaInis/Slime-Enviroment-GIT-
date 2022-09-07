@@ -193,7 +193,7 @@ class Slime(AECEnv):
                               self.agents}  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
         self.observation_space = BooleanSpace(
             size=2)  # DOC [0] = whether the turtle is in a cluster [1] = whether there is chemical in turtle patch
-        self.obs_dict = {a: self.observation_space.change_all(False) for a in self.agents}
+        self.obs_dict = {a: BooleanSpace(size=2) for a in self.agents}
 
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
         self.clock = pygame.time.Clock()
@@ -325,12 +325,12 @@ class Slime(AECEnv):
 
     # not using ".change_all" method form BooleanSpace
     def last(self, current_agent):
-        self._evaporate()
-        self._diffuse()
+        #self._evaporate()
+        #self._diffuse()
 
         self.agent = current_agent
-        self.obs_dict[self.agent][0] = self._compute_cluster(self.agent) >= self.cluster_threshold
-        self.obs_dict[self.agent][1] = self._check_chemical(self.agent)
+        self.obs_dict[self.agent].change(0, self._compute_cluster(self.agent) >= self.cluster_threshold)
+        self.obs_dict[self.agent].change(1, self._check_chemical(self.agent))
         cur_reward = self.reward_cluster_and_time_punish_time(self.agent)
 
         return self.obs_dict[self.agent], cur_reward, False, {}
@@ -584,7 +584,7 @@ class Slime(AECEnv):
         pop_tot = self.population + self.learner_population
         self.rewards = {i: [] for i in range(self.population, pop_tot)}
         self.cluster_ticks = {i: 0 for i in range(self.population, pop_tot)}
-        self.obs_dict = {a: self.observation_space.change_all(False) for a in self.agents}
+        self.obs_dict = {a: BooleanSpace(size=2) for a in self.agents}
         # re-position learner turtle
         for l in self.learners:
             self.patches[self.learners[l]['pos']]['turtles'].remove(l)
@@ -649,7 +649,7 @@ class Slime(AECEnv):
 
 
 if __name__ == "__main__":
-    PARAMS_FILE = "single-agent-params.json"
+    PARAMS_FILE = "multi-agent-params.json"
     EPISODES = 5
     LOG_EVERY = 1
 
@@ -662,10 +662,12 @@ if __name__ == "__main__":
         print(
             f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
         for tick in range(params['episode_ticks']):
-            env.move()
             for agent in env.agent_iter(max_iter=params["learner_population"]):
-                # observation, reward, done, info = env.last()
+                observation, reward, done, info = env.last(agent)
                 env.step(env.action_space(agent).sample())
             # env.evaporate_chemical()
+            env.move()
+            env._evaporate()
+            env._diffuse()
             env.render()
     env.close()
