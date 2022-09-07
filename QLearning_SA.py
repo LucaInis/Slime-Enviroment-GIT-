@@ -39,7 +39,7 @@ def state_to_int_map(obs: [bool, bool]):
 print("Start training...")
 for ep in range(1, TRAIN_EPISODES+1):
     reward_episode = 0
-    state, reward, done, info = env.reset()
+    state, _, _, _ = env.reset()
     s = state_to_int_map(state)
     for tick in range(params['episode_ticks']):
         if random.uniform(0, 1) < epsilon:
@@ -47,12 +47,12 @@ for ep in range(1, TRAIN_EPISODES+1):
         else:
             action = np.argmax(q_table[s])  # Exploit learned values
 
-        next_state, reward, done, info = env.step(action)
+        next_state, reward, _, _ = env.step(action)
         next_s = state_to_int_map(next_state)
         reward_episode += reward
 
         old_value = q_table[s][action]
-        next_max = np.max(q_table[s])
+        next_max = np.max(q_table[next_s])  # QUESTION: was with [s]
 
         new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
         q_table[s][action] = new_value
