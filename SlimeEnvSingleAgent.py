@@ -15,7 +15,7 @@ RED = (190, 0, 0)
 GREEN = (0, 190, 0)
 
 
-class BooleanSpace(gym.Space):  # TODO improve implementation: should be a N-dimensional space of N boolean values
+class BooleanSpace(gym.Space):
     def __init__(self, size=None):
         """
         A space of boolean values
@@ -74,6 +74,7 @@ class Slime(gym.Env):
                                         'rng' = random visiting
                                         'sorted' = diffuse first the patches with more pheromone
                                         'filter' = do not re-diffuse patches receiving pheromone due to diffusion
+                                        'cascade' = step-by-step diffusion within 'diffuse_area'
         :param follow_mode          Controls how non-learning agents follow pheromone:
                                         'det' = follow greatest pheromone
                                         'prob' = follow greatest pheromone probabilistically (pheromone strength as weight)
@@ -112,7 +113,7 @@ class Slime(gym.Env):
         self.lay_area = kwargs['lay_area']
         self.lay_amount = kwargs['lay_amount']
         self.evaporation = kwargs['evaporation']
-        self.diffuse_mode = kwargs['diffuse_mode']  # TODO 'cascade' (stpe-by-step diffusion within 'diffuse_area')
+        self.diffuse_mode = kwargs['diffuse_mode']
         self.follow_mode = kwargs['follow_mode']
         self.cluster_threshold = kwargs['cluster_threshold']
         self.cluster_radius = kwargs['cluster_radius']
@@ -170,8 +171,7 @@ class Slime(gym.Env):
         self._find_neighbours(self.cluster_patches, self.cluster_radius)
 
         self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
-        self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster
-        # DOC [1] = whether there is chemical in turtle patch
+        self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster [1] = whether there is chemical in turtle patch
 
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
         self.clock = pygame.time.Clock()
@@ -303,8 +303,8 @@ class Slime(gym.Env):
         self._diffuse()
         self._evaporate()
 
-        cur_reward = self.reward_cluster_and_time_punish_time()
         self.observation_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
+        cur_reward = self.reward_cluster_and_time_punish_time()
 
         return self.observation_space.observe(), cur_reward, False, {}
 
@@ -566,7 +566,7 @@ class Slime(gym.Env):
 
 
 if __name__ == "__main__":
-    PARAMS_FILE = "SlimeEnvV2-params.json"
+    PARAMS_FILE = "single-agent-params.json"
     EPISODES = 5
     LOG_EVERY = 1
 

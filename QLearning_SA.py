@@ -1,10 +1,10 @@
-from SlimeEnvV2 import Slime
+from SlimeEnvSingleAgent import Slime
 
 import json
 import numpy as np
 import random
 
-PARAMS_FILE = "SlimeEnvV2-params.json"
+PARAMS_FILE = "single-agent-params.json"
 TRAIN_EPISODES = 1500
 TRAIN_LOG_EVERY = 50
 TEST_EPISODES = 10
