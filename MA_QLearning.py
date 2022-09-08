@@ -79,7 +79,7 @@ for ep in range(1, TRAIN_EPISODES+1):
                     action = env.action_space(agent).sample()
                 else:
                     action = np.argmax(qtable[agent][cur_s])
-                env.step(action)
+            env.step(action)
 
             old_s[agent] = cur_s
 
