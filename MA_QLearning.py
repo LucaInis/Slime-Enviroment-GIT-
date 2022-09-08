@@ -10,7 +10,7 @@ TRAIN_EPISODES = 500
 TRAIN_LOG_EVERY = 50
 TEST_EPISODES = 10
 TEST_LOG_EVERY = 1
-OUTPUT_FILE = f"multi-test-01-{datetime.now()}.csv"
+OUTPUT_FILE = f"multi-test-01-{datetime.datetime.now()}.csv"
 
 with open(PARAMS_FILE) as f:
     params = json.load(f)
