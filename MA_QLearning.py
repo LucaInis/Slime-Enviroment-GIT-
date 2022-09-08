@@ -59,30 +59,29 @@ def state_to_int_map(obs: [bool, bool]):
 
 # TRAINING
 print("Start training...")
+old_s = {}  # DOC old state for each agent {agent: old_state}
 for ep in range(1, TRAIN_EPISODES+1):
     env.reset()
-    for tick in range(params['episode_ticks']):
+    for tick in range(1, params['episode_ticks']+1):
         for agent in env.agent_iter(max_iter=params['learner_population']):
-            state, _, _, _ = env.last(agent)
-            s = state_to_int_map(state.observe())
-
-            if random.uniform(0, 1) < epsilon:
-                #action = np.random.randint(0, 2)
+            cur_state, reward, _, _ = env.last(agent)
+            cur_s = state_to_int_map(cur_state.observe())
+            if ep == 1 and tick == 1:
                 action = env.action_space(agent).sample()
             else:
-                action = np.argmax(qtable[agent][s])
+                old_value = qtable[agent][old_s[agent]][action]
+                next_max = np.max(qtable[agent][cur_s])  # QUESTION: was with [action] too
+                new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
+                qtable[agent][old_s[agent]][action] = new_value
 
-            env.step(action)
-            next_state, reward, _, _ = env.last(agent)  # get observation (state) for current agent
-            next_s = state_to_int_map(next_state.observe())
+                if random.uniform(0, 1) < epsilon:
+                    # action = np.random.randint(0, 2)
+                    action = env.action_space(agent).sample()
+                else:
+                    action = np.argmax(qtable[agent][cur_s])
+                env.step(action)
 
-            old_value = qtable[agent][s][action]
-            next_max = np.max(qtable[agent][next_s])  # QUESTION: was with [action] too
-
-            new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
-            qtable[agent][s][action] = new_value
-
-            s = next_s
+            old_s[agent] = cur_s
 
             action_dict[str(ep)][str(agent)][str(action)] += 1
             reward_dict[str(ep)][str(agent)] += round(reward, 2)
@@ -97,8 +96,8 @@ for ep in range(1, TRAIN_EPISODES+1):
         #print(f"\tepisode reward: {reward_episode}")
         avg_rew = 0
         for a in reward_dict[str(ep)]:
-            avg_rew += reward_dict[str(ep)][a]
-        avg_rew /= len(reward_dict[str(ep)])
+            avg_rew += (reward_dict[str(ep)][a] / params['episode_ticks'])
+        avg_rew /= params['learner_population']
         with open(OUTPUT_FILE, 'a') as f:
             f.write(f"{ep}, {round(avg_rew, 2)}\n")
     cluster_dict[str(ep)] = round(env.avg_cluster(), 2)
@@ -110,7 +109,7 @@ cluster_dict = {}
 print("Start testing...")
 for ep in range(1, TEST_EPISODES+1):
     env.reset()
-    for tick in range(params['episode_ticks']):
+    for tick in range(1, params['episode_ticks']+1):
         for agent in env.agent_iter(max_iter=params['learner_population']):
             state, _, _, _ = env.last(agent)
             s = state_to_int_map(state.observe())
