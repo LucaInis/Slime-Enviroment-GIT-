@@ -20,7 +20,7 @@ env = Slime(render_mode="human", **params)
 alpha = 0.2  # DOC learning rate (0 learn nothing 1 learn suddenly)
 gamma = 0.8  # DOC discount factor (0 care only bout immediate rewards, 1 care only about future ones)
 epsilon = 0.9  # DOC chance of random action
-decay = 0.9995  # DOC di quanto diminuisce epsilon ogni episode
+decay = 0.9995  # DOC di quanto diminuisce epsilon ogni episode (e.g. 1500 episodes => decay = 0.9995)
 
 with open(OUTPUT_FILE, 'w') as f:
     f.write(f"{json.dumps(params, indent=2)}\n")

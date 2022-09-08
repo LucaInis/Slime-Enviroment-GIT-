@@ -544,7 +544,7 @@ class Slime(AECEnv):
         self.rewards[self.agent].append(cur_reward)
         return cur_reward
 
-    def reward_cluster_punish_time(self, current_agent):
+    def reward_cluster_punish_time(self, current_agent):  # DOC NetLogo rewardFunc7
         """
         Reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside
         clusters
@@ -562,7 +562,7 @@ class Slime(AECEnv):
         self.rewards[self.agent].append(cur_reward)
         return cur_reward
 
-    def reward_cluster_and_time_punish_time(self, current_agent):
+    def reward_cluster_and_time_punish_time(self, current_agent):  # DOC NetLogo rewardFunc8
         """
 
         :return:
