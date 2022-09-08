@@ -3,30 +3,44 @@ from SlimeEnvMultiAgent import Slime
 import json
 import numpy as np
 import random
+import datetime
 
 PARAMS_FILE = "multi-agent-params.json"
-TRAIN_EPISODES = 1500
+TRAIN_EPISODES = 500
 TRAIN_LOG_EVERY = 50
 TEST_EPISODES = 10
 TEST_LOG_EVERY = 1
+OUTPUT_FILE = f"multi-test-01-{datetime.now()}.csv"
 
 with open(PARAMS_FILE) as f:
     params = json.load(f)
 env = Slime(render_mode="human", **params)
 
 # Q-Learning
-alpha = 0.5  # DOC learning rate (0 learn nothing 1 learn suddenly)
+alpha = 0.2  # DOC learning rate (0 learn nothing 1 learn suddenly)
 gamma = 0.8  # DOC discount factor (0 care only bout immediate rewards, 1 care only about future ones)
 epsilon = 0.9  # DOC chance of random action
-decay = 0.995  # DOC di quanto diminuisce epsilon ogni episode
+decay = 0.9995  # DOC di quanto diminuisce epsilon ogni episode
+
+with open(OUTPUT_FILE, 'w') as f:
+    f.write(f"{json.dumps(params, indent=2)}\n")
+    f.write("----------\n")
+    f.write(f"TRAIN_EPISODES = {TRAIN_EPISODES}\n")
+    f.write(f"TEST_EPISODES = {TEST_EPISODES}\n")
+    f.write("----------\n")
+    f.write(f"alpha = {alpha}\n")
+    f.write(f"gamma = {gamma}\n")
+    f.write(f"epsilon = {epsilon}\n")
+    f.write(f"decay = {decay}\n")
+    f.write("----------\n")
 
 # Q_table
 qtable = {i: np.zeros([4, 3]) for i in range(params['population'], params['population'] + params['learner_population'])}
 
-# dict che tiene conto della frequenza di scelta delle action di ogni agent per ogni episodio
-action_dict = {'EPISODE_'+str(ep): {'AGENT_'+str(ag): {'ACTION_'+str(ac): 0 for ac in range(3)} for ag in range(params['population'], params['population']+params['learner_population'])} for ep in range(1, TRAIN_EPISODES+1)}
-# dict che tiene conto della reward totale accumulata per ogni episodio
-reward_dict = {'EPISODE_'+str(ep): 0 for ep in range(1, TRAIN_EPISODES+1)}
+# dict che tiene conto della frequenza di scelta delle action di ogni agent per ogni episodio {episode: {agent: {action: _, action: _, ...}}}
+action_dict = {str(ep): {str(ag): {str(ac): 0 for ac in range(3)} for ag in range(params['population'], params['population']+params['learner_population'])} for ep in range(1, TRAIN_EPISODES+1)}
+# dict che tiene conto della reward di ogni agente per ogni episodio {episode: {agent: _}}
+reward_dict = {str(ep): {str(ag): 0 for ag in range(params['population'], params['population']+params['learner_population'])} for ep in range(1, TRAIN_EPISODES+1)}
 # dict che tiene conto dela dimensioni di ogni cluster per ogni episodio
 cluster_dict = {}
 
@@ -70,8 +84,8 @@ for ep in range(1, TRAIN_EPISODES+1):
 
             s = next_s
 
-            action_dict['EPISODE_' + str(ep)]['AGENT_' + str(agent)]['ACTION_' + str(action)] += 1
-            reward_dict['EPISODE_' + str(ep)] += round(reward, 1)
+            action_dict[str(ep)][str(agent)][str(action)] += 1
+            reward_dict[str(ep)][str(agent)] += round(reward, 2)
         env.move()
         env._evaporate()
         env._diffuse()
@@ -81,11 +95,18 @@ for ep in range(1, TRAIN_EPISODES+1):
         print(f"EPISODE: {ep}")
         print(f"\tepsilon: {epsilon}")
         #print(f"\tepisode reward: {reward_episode}")
-    cluster_dict['EPISODE_' + str(ep)] = env.avg_cluster()
-print(cluster_dict)
+        avg_rew = 0
+        for a in reward_dict[str(ep)]:
+            avg_rew += reward_dict[str(ep)][a]
+        avg_rew /= len(reward_dict[str(ep)])
+        with open(OUTPUT_FILE, 'a') as f:
+            f.write(f"{ep}, {round(avg_rew, 2)}\n")
+    cluster_dict[str(ep)] = round(env.avg_cluster(), 2)
+print(json.dumps(cluster_dict, indent=2))
 print("Training finished!\n")
 
 # DOC Evaluate agent's performance after Q-learning
+cluster_dict = {}
 print("Start testing...")
 for ep in range(1, TEST_EPISODES+1):
     env.reset()
@@ -109,6 +130,7 @@ for ep in range(1, TEST_EPISODES+1):
         print(f"EPISODE: {ep}")
         print(f"\tepsilon: {epsilon}")
         # print(f"\tepisode reward: {reward_episode}")
-    cluster_dict['EPISODE_' + str(ep)] = env.avg_cluster()
-print(cluster_dict)
+    cluster_dict[str(ep)] = round(env.avg_cluster(), 2)
+print(json.dumps(cluster_dict, indent=2))
+print("Testing finished!\n")
 env.close()

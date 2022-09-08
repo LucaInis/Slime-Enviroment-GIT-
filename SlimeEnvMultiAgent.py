@@ -500,7 +500,7 @@ class Slime(AECEnv):
             if cluster not in cluster_sizes:
                 cluster_sizes.append(cluster)
 
-        # cleaning process: confornta i cluster (nello stesso episodio) e se ne trova 2 con più del 85% di turtle uguali ne elimina 1
+        # cleaning process: confornta i cluster (nello stesso episodio) e se ne trova 2 con più del 90% di turtle uguali ne elimina 1
         for cluster in cluster_sizes:
             for cl in cluster_sizes:
                 if cl != cluster:
