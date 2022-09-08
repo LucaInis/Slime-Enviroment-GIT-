@@ -6,7 +6,7 @@ import random
 
 PARAMS_FILE = "multi-agent-params.json"
 TRAIN_EPISODES = 1500
-TRAIN_LOG_EVERY = 1
+TRAIN_LOG_EVERY = 50
 TEST_EPISODES = 10
 TEST_LOG_EVERY = 1
 
