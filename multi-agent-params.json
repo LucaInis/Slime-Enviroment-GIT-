@@ -13,7 +13,7 @@
   "cluster_radius": 5,
   "rew": 100,
   "penalty": -1,
-  "episode_ticks": 500,
+  "episode_ticks": 10,
   "W": 66,
   "H": 38,
   "PATCH_SIZE": 20,
