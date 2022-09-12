@@ -6,21 +6,23 @@ import random
 import datetime
 
 PARAMS_FILE = "multi-agent-params.json"
-TRAIN_EPISODES = 500
-TRAIN_LOG_EVERY = 50
-TEST_EPISODES = 10
-TEST_LOG_EVERY = 1
-OUTPUT_FILE = f"multi-test-01-{datetime.datetime.now()}.csv"
-
+LEARNING_PARAMS_FILE = "ma-learning-params.json"
+with open(LEARNING_PARAMS_FILE) as f:
+    l_params = json.load(f)
+OUTPUT_FILE = f"{l_params['OUTPUT_FILE']}-{datetime.datetime.now()}.csv"
 with open(PARAMS_FILE) as f:
     params = json.load(f)
 env = Slime(render_mode="human", **params)
 
 # Q-Learning
-alpha = 0.2  # DOC learning rate (0 learn nothing 1 learn suddenly)
-gamma = 0.8  # DOC discount factor (0 care only bout immediate rewards, 1 care only about future ones)
-epsilon = 0.9  # DOC chance of random action
-decay = 0.9995  # DOC di quanto diminuisce epsilon ogni episode (e.g. 1500 episodes => decay = 0.9995)
+alpha = l_params["alpha"]  # DOC learning rate (0 learn nothing 1 learn suddenly)
+gamma = l_params["gamma"]  # DOC discount factor (0 care only bout immediate rewards, 1 care only about future ones)
+epsilon = l_params["epsilon"]  # DOC chance of random action
+decay = l_params["decay"]  # DOC di quanto diminuisce epsilon ogni episode (e.g. 1500 episodes => decay = 0.9995)
+TRAIN_EPISODES = l_params["train_episodes"]
+TEST_EPISODES = l_params["test_episodes"]
+TRAIN_LOG_EVERY = l_params["TRAIN_LOG_EVERY"]
+TEST_LOG_EVERY = l_params["TEST_LOG_EVERY"]
 
 with open(OUTPUT_FILE, 'w') as f:
     f.write(f"{json.dumps(params, indent=2)}\n")
@@ -125,7 +127,7 @@ for ep in range(1, TEST_EPISODES+1):
         env._evaporate()
         env._diffuse()
         env.render()
-    if ep % TRAIN_LOG_EVERY == 0:
+    if ep % TEST_LOG_EVERY == 0:
         print(f"EPISODE: {ep}")
         print(f"\tepsilon: {epsilon}")
         # print(f"\tepisode reward: {reward_episode}")
