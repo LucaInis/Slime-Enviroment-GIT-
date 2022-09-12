@@ -7,5 +7,6 @@
   "TRAIN_LOG_EVERY": 1,
   "test_episodes": 2,
   "TEST_LOG_EVERY": 1,
-  "OUTPUT_FILE": "multi-test-01"
+  "OUTPUT_FILE": "multi-test-01",
+  "actions": ["move-toward-chemical", "random-walk", "drop-chemical"]
 }

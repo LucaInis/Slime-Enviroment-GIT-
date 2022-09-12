@@ -35,15 +35,25 @@ with open(OUTPUT_FILE, 'w') as f:
     f.write(f"epsilon = {epsilon}\n")
     f.write(f"decay = {decay}\n")
     f.write("----------\n")
+    # From NetlogoDataAnalysis: Episode, Tick, Avg cluster size X tick, Avg reward X episode, move-toward-chemical, random-walk, drop-chemical, (learner 0)-move-toward-chemical
+    f.write(f"Episodes, Avg cluster size X tick, Avg reward X episode, ")
+    for a in l_params["actions"]:
+        f.write(f"{a}, ")
+    for l in range(params['population'], params['population']+params['learner_population']-1):
+        for a in l_params["actions"]:
+            f.write(f"(learner {l})-{a}, ")
+    for a in l_params["actions"][:-1]:
+        f.write(f"(learner {params['population']+params['learner_population']-1})-{a}, ")
+    f.write(f"(learner {params['population'] + params['learner_population'] - 1})-{l_params['actions'][-1]}\n")
 
 # Q_table
 qtable = {i: np.zeros([4, 3]) for i in range(params['population'], params['population'] + params['learner_population'])}
 
-# dict che tiene conto della frequenza di scelta delle action di ogni agent per ogni episodio {episode: {agent: {action: _, action: _, ...}}}
+# DOC dict che tiene conto della frequenza di scelta delle action di ogni agent per ogni episodio {episode: {agent: {action: _, action: _, ...}}}
 action_dict = {str(ep): {str(ag): {str(ac): 0 for ac in range(3)} for ag in range(params['population'], params['population']+params['learner_population'])} for ep in range(1, TRAIN_EPISODES+1)}
-# dict che tiene conto della reward di ogni agente per ogni episodio {episode: {agent: _}}
+# DOC dict che tiene conto della reward di ogni agente per ogni episodio {episode: {agent: _}}
 reward_dict = {str(ep): {str(ag): 0 for ag in range(params['population'], params['population']+params['learner_population'])} for ep in range(1, TRAIN_EPISODES+1)}
-# dict che tiene conto dela dimensioni di ogni cluster per ogni episodio
+# DOC dict che tiene conto dela dimensioni di ogni cluster per ogni episodio
 cluster_dict = {}
 
 

@@ -1,6 +1,6 @@
 {
   "population": 0,
-  "learner_population": 50,
+  "learner_population": 2,
   "sniff_threshold": 0.9,
   "diffuse_area": 2,
   "diffuse_mode": "cascade",
