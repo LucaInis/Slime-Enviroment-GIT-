@@ -16,6 +16,10 @@ GREEN = (0, 190, 0)
 
 
 class BooleanSpace(gym.Space):
+    @property
+    def is_np_flattenable(self):
+        return False
+
     def __init__(self, size=None):
         """
         A space of boolean values
@@ -59,7 +63,7 @@ class BooleanSpace(gym.Space):
 
 
 class Slime(gym.Env):
-    metadata = {"render_modes": "human"}
+    metadata = {"render_modes": "human", "render_fps": 30}
 
     def __init__(self,
                  render_mode: Optional[str] = None,
@@ -172,6 +176,7 @@ class Slime(gym.Env):
 
         self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
         self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster [1] = whether there is chemical in turtle patch
+        self._action_to_name = {0: "random-walk", 1: "drop-chemical", 2: "move-toward-chemical"}
 
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
         self.clock = pygame.time.Clock()
@@ -303,7 +308,7 @@ class Slime(gym.Env):
         self._diffuse()
         self._evaporate()
 
-        self.observation_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
+        self.observation_space = self._get_obs()
         cur_reward = self.reward_cluster_and_time_punish_time()
 
         return self.observation_space.observe(), cur_reward, False, {}
@@ -504,7 +509,7 @@ class Slime(gym.Env):
     def reset(self):
         # empty stuff
         self.rewards = []
-        self.observation_space.change_all([False, False])
+        self.observation_space = BooleanSpace(size=2)
         self.cluster_ticks = 0
 
         # re-position learner turtle
@@ -563,6 +568,11 @@ class Slime(gym.Env):
         if self.screen is not None:
             pygame.display.quit()
             pygame.quit()
+
+    def _get_obs(self):
+        new_space = BooleanSpace(size=2)
+        new_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
+        return new_space
 
 
 if __name__ == "__main__":
