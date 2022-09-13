@@ -3,10 +3,10 @@
   "gamma": 0.8,
   "epsilon": 0.9,
   "decay": 0.9995,
-  "train_episodes": 2,
-  "TRAIN_LOG_EVERY": 1,
-  "test_episodes": 2,
+  "train_episodes": 1500,
+  "TRAIN_LOG_EVERY": 50,
+  "test_episodes": 50,
   "TEST_LOG_EVERY": 1,
-  "OUTPUT_FILE": "single-test-01",
+  "OUTPUT_FILE": "single-test-02",
   "actions": ["move-toward-chemical", "random-walk", "drop-chemical"]
 }

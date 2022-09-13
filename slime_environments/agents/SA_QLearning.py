@@ -5,6 +5,7 @@ import gym
 import json
 import numpy as np
 import random
+import slime_environments
 
 PARAMS_FILE = "single-agent-params.json"
 LEARNING_PARAMS_FILE = "sa-learning-params.json"
@@ -14,7 +15,7 @@ OUTPUT_FILE = f"{l_params['OUTPUT_FILE']}-{datetime.datetime.now()}.csv"
 with open(PARAMS_FILE) as f:
     params = json.load(f)
 #env = Slime(render_mode="human", **params)
-env = gym.make("unimore/SlimeEnvSingleAgent-v0", **params)
+env = gym.make("Slime-v0", **params)
 
 # Q-Learning
 alpha = l_params["alpha"]  # DOC learning rate (0 learn nothing 1 learn suddenly)
@@ -92,7 +93,7 @@ for ep in range(1, TRAIN_EPISODES+1):
 
         env.render()
     epsilon *= decay
-    #cluster_dict[str(ep)] = round(env.avg_cluster(), 2)
+    cluster_dict[str(ep)] = -1  # round(env.avg_cluster(), 2)
     if ep % TRAIN_LOG_EVERY == 0:
         print(f"EPISODE: {ep}")
         print(f"\tepsilon: {epsilon}")
@@ -122,6 +123,7 @@ for ep in range(1, TEST_EPISODES+1):
         print(f"EPISODE: {ep}")
         print(f"\tepisode reward: {reward_episode}")
     #cluster_dict[str(ep)] = round(env.avg_cluster(), 2)
+    cluster_dict[str(ep)] = -1
 print(json.dumps(cluster_dict, indent=2))
 print("Testing finished!\n")
 env.close()
