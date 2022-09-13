@@ -54,7 +54,7 @@ reward_dict = {str(ep): 0 for ep in range(1, TRAIN_EPISODES+1)}
 cluster_dict = {}
 
 
-def state_to_int_map(obs: [bool, bool]):
+def observation_to_int_map(obs: [bool, bool]):
     if sum(obs) == 0:  # DOC [False, False]
         mapped = sum(obs)  # 0
     elif sum(obs) == 2:  # DOC [True, True]
@@ -69,24 +69,24 @@ def state_to_int_map(obs: [bool, bool]):
 # TRAINING
 print("Start training...")
 for ep in range(1, TRAIN_EPISODES+1):
-    state, _ = env.reset()
-    s = state_to_int_map(state)
+    observation, _ = env.reset()
+    obs = observation_to_int_map(observation)
     for tick in range(1, params['episode_ticks']+1):
         if random.uniform(0, 1) < epsilon:
             action = env.action_space.sample()  # Explore action space
         else:
-            action = np.argmax(q_table[s])  # Exploit learned values
+            action = np.argmax(q_table[obs])  # Exploit learned values
 
-        next_state, reward, _, _, _ = env.step(action)
-        next_s = state_to_int_map(next_state)
+        next_observation, reward, _, _, _ = env.step(action)
+        next_obs = observation_to_int_map(next_observation)
 
-        old_value = q_table[s][action]
-        next_max = np.max(q_table[next_s])  # QUESTION: was with [s]
+        old_value = q_table[obs][action]
+        next_max = np.max(q_table[next_obs])  # QUESTION: was with [s]
 
         new_value = (1 - alpha) * old_value + alpha * (reward + gamma * next_max)
-        q_table[s][action] = new_value
+        q_table[obs][action] = new_value
 
-        s = next_s
+        obs = next_obs
 
         actions_dict[str(ep)][str(action)] += 1
         reward_dict[str(ep)] += round(reward, 2)
@@ -111,12 +111,12 @@ cluster_dict = {}
 print("Start testing...")
 for ep in range(1, TEST_EPISODES+1):
     reward_episode = 0
-    state, _ = env.reset()
-    state = sum(state)
+    observation, _ = env.reset()
+    obs = observation_to_int_map(observation)
     for tick in range(params['episode_ticks']):
-        action = np.argmax(q_table[state])
-        state, reward, _, _, _ = env.step(action)
-        state = sum(state)
+        action = np.argmax(q_table[obs])
+        observation, reward, _, _, _ = env.step(action)
+        obs = observation_to_int_map(observation)
         reward_episode += reward
         env.render()
     if ep % TEST_LOG_EVERY == 0:
