@@ -1,4 +1,4 @@
-from SlimeEnvMultiAgent import Slime
+from environments.SlimeEnvMultiAgent import Slime
 
 import json
 import numpy as np

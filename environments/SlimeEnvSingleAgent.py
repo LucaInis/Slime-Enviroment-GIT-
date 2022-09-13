@@ -7,9 +7,6 @@ import gym
 import numpy as np
 import pygame
 from gym import spaces
-from pettingzoo import AECEnv
-from pettingzoo.utils import agent_selector
-from pettingzoo.utils.env import ObsType
 
 BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
@@ -19,6 +16,10 @@ GREEN = (0, 190, 0)
 
 
 class BooleanSpace(gym.Space):
+    @property
+    def is_np_flattenable(self):
+        return False
+
     def __init__(self, size=None):
         """
         A space of boolean values
@@ -61,17 +62,8 @@ class BooleanSpace(gym.Space):
         self.values = values
 
 
-class Slime(AECEnv):
-    def seed(self, seed: Optional[int] = None) -> None:
-        pass
-
-    def observe(self, agent: str) -> ObsType:
-        pass
-
-    def state(self) -> np.ndarray:
-        pass
-
-    metadata = {"render_modes": "human"}
+class Slime(gym.Env):
+    metadata = {"render_modes": "human", "render_fps": 30}
 
     def __init__(self,
                  render_mode: Optional[str] = None,
@@ -119,7 +111,6 @@ class Slime(AECEnv):
         assert render_mode is None or render_mode in self.metadata["render_modes"]
 
         self.population = kwargs['population']
-        self.learner_population = kwargs['learner_population']
         self.sniff_threshold = kwargs['sniff_threshold']
         self.diffuse_area = kwargs['diffuse_area']
         self.smell_area = kwargs['smell_area']
@@ -152,14 +143,9 @@ class Slime(AECEnv):
             for y in range(self.offset, (self.H_pixels - self.offset) + 1, self.patch_size):
                 self.coords.append((x, y))  # "centre" of the patch or turtle (also ID of the patch)
 
-        pop_tot = self.population + self.learner_population
-        self.agents = [i for i in range(self.population, pop_tot)]  # DOC learning agents IDs
-        self._agent_selector = agent_selector(self.agents)
-        self.agent = self._agent_selector.next()
-
         n_coords = len(self.coords)
-        # create learners turtle
-        self.learners = {i: {"pos": self.coords[np.random.randint(n_coords)]} for i in range(self.population, pop_tot)}
+        # create learner turtle
+        self.learner = {"pos": self.coords[np.random.randint(n_coords)]}
         # create NON learner turtles
         self.turtles = {i: {"pos": self.coords[np.random.randint(n_coords)]} for i in range(self.population)}
 
@@ -167,8 +153,7 @@ class Slime(AECEnv):
         self.patches = {self.coords[i]: {"id": i,
                                          'chemical': 0.0,
                                          'turtles': []} for i in range(n_coords)}
-        for l in self.learners:
-            self.patches[self.learners[l]['pos']]['turtles'].append(l)  # DOC id of learner turtles
+        self.patches[self.learner['pos']]['turtles'].append(-1)  # DOC id of learner turtle
         for t in self.turtles:
             self.patches[self.turtles[t]['pos']]['turtles'].append(t)
 
@@ -189,11 +174,9 @@ class Slime(AECEnv):
         self.cluster_patches = {}
         self._find_neighbours(self.cluster_patches, self.cluster_radius)
 
-        self.action_spaces = {a: spaces.Discrete(3) for a in
-                              self.agents}  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
-        self.observation_space = BooleanSpace(
-            size=2)  # DOC [0] = whether the turtle is in a cluster [1] = whether there is chemical in turtle patch
-        self.obs_dict = {a: BooleanSpace(size=2) for a in self.agents}
+        self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
+        self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster [1] = whether there is chemical in turtle patch
+        self._action_to_name = {0: "random-walk", 1: "drop-chemical", 2: "move-toward-chemical"}
 
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
         self.clock = pygame.time.Clock()
@@ -201,8 +184,8 @@ class Slime(AECEnv):
         self.cluster_font = pygame.font.SysFont("arial", self.cluster_font_size)
         self.chemical_font = pygame.font.SysFont("arial", self.chemical_font_size)
 
-        self.rewards = {i: [] for i in range(self.population, pop_tot)}
-        self.cluster_ticks = {i: 0 for i in range(self.population, pop_tot)}
+        self.rewards = []
+        self.cluster_ticks = 0
 
         self.first_gui = True
 
@@ -219,37 +202,33 @@ class Slime(AECEnv):
         for p in self.patches:
             neighbours[p] = []
             for ring in range(area):
-                for x in range(p[0] + (ring * self.patch_size), p[0] + ((ring + 1) * self.patch_size) + 1,
-                               self.patch_size):
-                    for y in range(p[1] + (ring * self.patch_size), p[1] + ((ring + 1) * self.patch_size) + 1,
-                                   self.patch_size):
+                for x in range(p[0] + (ring * self.patch_size), p[0] + ((ring + 1) * self.patch_size) + 1, self.patch_size):
+                    for y in range(p[1] + (ring * self.patch_size), p[1] + ((ring + 1) * self.patch_size) + 1, self.patch_size):
+                        #x, y = self._wrap(x, y)
                         if (x, y) not in neighbours[p]:
                             neighbours[p].append((x, y))
-                for x in range(p[0] + (ring * self.patch_size), p[0] - ((ring + 1) * self.patch_size) - 1,
-                               -self.patch_size):
-                    for y in range(p[1] + (ring * self.patch_size), p[1] - ((ring + 1) * self.patch_size) - 1,
-                                   -self.patch_size):
+                for x in range(p[0] + (ring * self.patch_size), p[0] - ((ring + 1) * self.patch_size) - 1, -self.patch_size):
+                    for y in range(p[1] + (ring * self.patch_size), p[1] - ((ring + 1) * self.patch_size) - 1, -self.patch_size):
+                        #x, y = self._wrap(x, y)
                         if (x, y) not in neighbours[p]:
                             neighbours[p].append((x, y))
-                for x in range(p[0] + (ring * self.patch_size), p[0] + ((ring + 1) * self.patch_size) + 1,
-                               self.patch_size):
-                    for y in range(p[1] + (ring * self.patch_size), p[1] - ((ring + 1) * self.patch_size) - 1,
-                                   -self.patch_size):
+                for x in range(p[0] + (ring * self.patch_size), p[0] + ((ring + 1) * self.patch_size) + 1, self.patch_size):
+                    for y in range(p[1] + (ring * self.patch_size), p[1] - ((ring + 1) * self.patch_size) - 1, -self.patch_size):
+                        #x, y = self._wrap(x, y)
                         if (x, y) not in neighbours[p]:
                             neighbours[p].append((x, y))
-                for x in range(p[0] + (ring * self.patch_size), p[0] - ((ring + 1) * self.patch_size) - 1,
-                               -self.patch_size):
-                    for y in range(p[1] + (ring * self.patch_size), p[1] + ((ring + 1) * self.patch_size) + 1,
-                                   self.patch_size):
+                for x in range(p[0] + (ring * self.patch_size), p[0] - ((ring + 1) * self.patch_size) - 1, -self.patch_size):
+                    for y in range(p[1] + (ring * self.patch_size), p[1] + ((ring + 1) * self.patch_size) + 1, self.patch_size):
+                        #x, y = self._wrap(x, y)
                         if (x, y) not in neighbours[p]:
                             neighbours[p].append((x, y))
             neighbours[p] = [self._wrap(x, y) for (x, y) in neighbours[p]]
-            # neighbours[p] = list(set(neighbours[p]))
+            #neighbours[p] = list(set(neighbours[p]))
 
     def _find_neighbours(self, neighbours: dict, area: int):
         """
         For each patch, find neighbouring patches within square radius 'area'
-
+        
         :param neighbours: empty dictionary to fill
             (will be dict mapping each patch to list of neighouring patches {(x, y): [(nx, ny), ...], ...})
         :param area: integer representing the number of patches to consider in the 8 directions around each patch
@@ -293,24 +272,15 @@ class Slime(AECEnv):
             y = y - self.H_pixels
         return x, y
 
-    # learners act
     def step(self, action: int):
-        agent_in_charge = self.agent_selection  # ID of agent
-        if action == 0:  # DOC walk
-            self.walk(self.learners[agent_in_charge], agent_in_charge)
-        elif action == 1:  # DOC lay_pheromone
-            self.lay_pheromone(self.learners[agent_in_charge]['pos'], self.lay_amount)
-        elif action == 2:  # DOC follow_pheromone
-            max_pheromone, max_coords = self._find_max_pheromone(self.learners[agent_in_charge]['pos'])
-            if max_pheromone >= self.sniff_threshold:
-                self.follow_pheromone(max_coords, self.learners[agent_in_charge], agent_in_charge)
-            else:
-                self.walk(self.learners[agent_in_charge], agent_in_charge)
+        """
+        OpenAI Gym env step function. Actions are: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
 
-        self.agent_selection = self._agent_selector.next()
+        :param action: 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone
+        :return: current observation, current reward, episode done, info
+        """
 
-    # non learners act
-    def move(self):
+        # non learners act
         for turtle in self.turtles:
             pos = self.turtles[turtle]['pos']
             t = self.turtles[turtle]
@@ -323,21 +293,30 @@ class Slime(AECEnv):
 
             self.lay_pheromone(self.turtles[turtle]['pos'], self.lay_amount)
 
-    # not using ".change_all" method form BooleanSpace
-    def last(self, current_agent):
-        #self._evaporate()
-        #self._diffuse()
+        # learner acts
+        if action == 0:  # DOC walk
+            self.walk(self.learner, -1)
+        elif action == 1:  # DOC lay_pheromone
+            self.lay_pheromone(self.learner['pos'], self.lay_amount)
+        elif action == 2:  # DOC follow_pheromone
+            max_pheromone, max_coords = self._find_max_pheromone(self.learner['pos'])
+            if max_pheromone >= self.sniff_threshold:
+                self.follow_pheromone(max_coords, self.learner, -1)
+            else:
+                self.walk(self.learner, -1)
 
-        self.agent = current_agent
-        self.obs_dict[self.agent].change(0, self._compute_cluster(self.agent) >= self.cluster_threshold)
-        self.obs_dict[self.agent].change(1, self._check_chemical(self.agent))
-        cur_reward = self.reward_cluster_and_time_punish_time(self.agent)
+        self._diffuse()
+        self._evaporate()
 
-        return self.obs_dict[self.agent], cur_reward, False, {}
+        self.observation_space = self._get_obs()
+        cur_reward = self.reward_cluster_and_time_punish_time()
+
+        return self.observation_space.observe(), cur_reward, False, False, {}  # DOC Gym v26 has additional 'truncated' boolean
 
     def lay_pheromone(self, pos: tuple[int, int], amount: int):
         """
         Lay 'amount' pheromone in square 'area' centred in 'pos'
+
         :param pos: the x,y position taken as centre of pheromone deposit area
         :param amount: the amount of pheromone to deposit
         :return: None (environment properties are changed as side effect)
@@ -407,6 +386,7 @@ class Slime(AECEnv):
     def follow_pheromone(self, ph_coords: tuple[int, int], turtle: dict[str: tuple[int, int]], _id: int):
         """
         Action 2: move turtle towards greatest pheromone found
+
         :param _id: the id of the turtle to move
         :param ph_coords: the position where max pheromone has been sensed
         :param turtle: the turtle looking for pheromone
@@ -472,124 +452,70 @@ class Slime(AECEnv):
 
         return max_ph, winner
 
-    def _compute_cluster(self, current_agent):
+    def _compute_cluster(self):
         """
         Checks whether the learner turtle is within a cluster, given 'cluster_radius' and 'cluster_threshold'
 
         :return: a boolean
         """
-        self.agent = current_agent
         cluster = 1
-        for p in self.cluster_patches[self.learners[self.agent]['pos']]:
+        for p in self.cluster_patches[self.learner['pos']]:
             cluster += len(self.patches[p]['turtles'])
 
         return cluster
 
-    def avg_cluster(self):
-        """
-        Record the cluster size
-        :return: avg cluster size
-        """
-        cluster_sizes = []  # registra la dim. dei cluster
-        for l in self.learners:
-            cluster = []  # tiene conto di quali turtle sono in quel cluster
-            for p in self.cluster_patches[self.learners[l]['pos']]:
-                for t in self.patches[p]['turtles']:
-                    cluster.append(t)
-            cluster.sort()
-            if cluster not in cluster_sizes:
-                cluster_sizes.append(cluster)
-
-        # cleaning process: confornta i cluster (nello stesso episodio) e se ne trova 2 con più del 90% di turtle uguali ne elimina 1
-        for cluster in cluster_sizes:
-            for cl in cluster_sizes:
-                if cl != cluster:
-                    intersection = list(set(cluster) & set(cl))
-                    if len(intersection) > len(cluster) * 0.90:
-                        cluster_sizes.remove(cl)
-
-        # calcolo avg_cluster_size
-        somma = 0
-        for cluster in cluster_sizes:
-            somma += len(cluster)
-        avg_cluster_size = somma / len(cluster_sizes)
-
-        return avg_cluster_size
-
-    def _check_chemical(self, current_agent):
+    def _check_chemical(self):
         """
         Checks whether there is pheromone on the patch where the learner turtle is
 
         :return: a boolean
         """
-        self.agent = current_agent
-        return self.patches[self.learners[self.agent]['pos']][
-                   'chemical'] > self.sniff_threshold
+        return self.patches[self.learner['pos']][
+                   'chemical'] >= self.sniff_threshold
 
-    # not a real reward function
-    def test_reward(self, current_agent):  # trying to invert rewards process, GOAL: check any strange behaviour
-        """
-        :return: the reward
-        """
-        self.agent = current_agent
-        chem = 0
-        for p in self.patches.values():
-            if self.agent in p['turtles']:
-                chem = p['chemical']
-        if chem >= 5:
-            cur_reward = -1000
-        else:
-            cur_reward = 100
-
-        self.rewards[self.agent].append(cur_reward)
-        return cur_reward
-
-    def reward_cluster_punish_time(self, current_agent):  # DOC NetLogo rewardFunc7
+    def reward_cluster_punish_time(self):
         """
         Reward is (positve) proportional to cluster size (quadratic) and (negative) proportional to time spent outside
         clusters
 
         :return: the reward
         """
-        self.agent = current_agent
-        cluster = self._compute_cluster(self.agent)
+        cluster = self._compute_cluster()
         if cluster >= self.cluster_threshold:
-            self.cluster_ticks[self.agent] += 1
+            self.cluster_ticks += 1
 
         cur_reward = ((cluster ^ 2) / self.cluster_threshold) * self.reward + (
-                ((self.episode_ticks - self.cluster_ticks[self.agent]) / self.episode_ticks) * self.penalty)
+                ((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
 
-        self.rewards[self.agent].append(cur_reward)
+        self.rewards.append(cur_reward)
         return cur_reward
 
-    def reward_cluster_and_time_punish_time(self, current_agent):  # DOC NetLogo rewardFunc8
+    def reward_cluster_and_time_punish_time(self):
         """
 
         :return:
         """
-        self.agent = current_agent
-        cluster = self._compute_cluster(self.agent)
+        cluster = self._compute_cluster()
         if cluster >= self.cluster_threshold:
-            self.cluster_ticks[self.agent] += 1
+            self.cluster_ticks += 1
 
-        cur_reward = (self.cluster_ticks[self.agent] / self.episode_ticks) * self.reward + \
+        cur_reward = (self.cluster_ticks / self.episode_ticks) * self.reward + \
                      (cluster / self.cluster_threshold) * (self.reward ** 2) + \
-                     (((self.episode_ticks - self.cluster_ticks[self.agent]) / self.episode_ticks) * self.penalty)
+                     (((self.episode_ticks - self.cluster_ticks) / self.episode_ticks) * self.penalty)
 
-        self.rewards[self.agent].append(cur_reward)
+        self.rewards.append(cur_reward)
         return cur_reward
 
-    def reset(self):
+    def reset(self, **kwargs):
         # empty stuff
-        pop_tot = self.population + self.learner_population
-        self.rewards = {i: [] for i in range(self.population, pop_tot)}
-        self.cluster_ticks = {i: 0 for i in range(self.population, pop_tot)}
-        self.obs_dict = {a: BooleanSpace(size=2) for a in self.agents}
+        self.rewards = []
+        self.observation_space = BooleanSpace(size=2)
+        self.cluster_ticks = 0
+
         # re-position learner turtle
-        for l in self.learners:
-            self.patches[self.learners[l]['pos']]['turtles'].remove(l)
-            self.learners[l]['pos'] = self.coords[np.random.randint(len(self.coords))]
-            self.patches[self.learners[l]['pos']]['turtles'].append(l)  # DOC id of learner turtle
+        self.patches[self.learner['pos']]['turtles'].remove(-1)
+        self.learner['pos'] = self.coords[np.random.randint(len(self.coords))]
+        self.patches[self.learner['pos']]['turtles'].append(-1)  # DOC id of learner turtle
         # re-position NON learner turtles
         for t in self.turtles:
             self.patches[self.turtles[t]['pos']]['turtles'].remove(t)
@@ -599,10 +525,7 @@ class Slime(AECEnv):
         for p in self.patches:
             self.patches[p]['chemical'] = 0.0
 
-        self._agent_selector.reinit(self.agents)
-        self.agent_selection = self._agent_selector.next()
-
-        # return self.obs_dict[self.agent], 0, False, {}
+        return self.observation_space.observe(), {}
 
     def render(self, **kwargs):
         for event in pygame.event.get():
@@ -621,14 +544,13 @@ class Slime(AECEnv):
             pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),
                              pygame.Rect(p[0] - self.offset, p[1] - self.offset, self.patch_size, self.patch_size))
             if self.show_chem_text and (not sys.gettrace() is None or
-                                        self.patches[p][
-                                            'chemical'] >= self.sniff_threshold):  # if debugging show text everywhere, even 0
+                                        self.patches[p]['chemical'] >= self.sniff_threshold):  # if debugging show text everywhere, even 0
                 text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
                 self.screen.blit(text, text.get_rect(center=p))
 
-        # draw learners
-        for learner in self.learners.values():
-            pygame.draw.circle(self.screen, RED, (learner['pos'][0], learner['pos'][1]), self.turtle_size // 2)
+        # draw learner
+        pygame.draw.circle(self.screen, RED, (self.learner['pos'][0], self.learner['pos'][1]),
+                           self.turtle_size // 2)
         # draw NON learners
         for turtle in self.turtles.values():
             pygame.draw.circle(self.screen, BLUE, (turtle['pos'][0], turtle['pos'][1]), self.turtle_size // 2)
@@ -647,9 +569,14 @@ class Slime(AECEnv):
             pygame.display.quit()
             pygame.quit()
 
+    def _get_obs(self):
+        new_space = BooleanSpace(size=2)
+        new_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
+        return new_space
+
 
 if __name__ == "__main__":
-    PARAMS_FILE = "multi-agent-params.json"
+    PARAMS_FILE = "../agents/single-agent-params.json"
     EPISODES = 5
     LOG_EVERY = 1
 
@@ -662,12 +589,8 @@ if __name__ == "__main__":
         print(
             f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
         for tick in range(params['episode_ticks']):
-            for agent in env.agent_iter(max_iter=params["learner_population"]):
-                observation, reward, done, info = env.last(agent)
-                env.step(env.action_space(agent).sample())
-            # env.evaporate_chemical()
-            env.move()
-            env._evaporate()
-            env._diffuse()
+            observation, reward, done, info = env.step(env.action_space.sample())
+            if tick % LOG_EVERY == 0:
+                print(f"{tick}: {observation}, {reward}")
             env.render()
     env.close()
