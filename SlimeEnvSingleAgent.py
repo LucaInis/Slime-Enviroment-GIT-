@@ -311,7 +311,7 @@ class Slime(gym.Env):
         self.observation_space = self._get_obs()
         cur_reward = self.reward_cluster_and_time_punish_time()
 
-        return self.observation_space.observe(), cur_reward, False, {}
+        return self.observation_space.observe(), cur_reward, False, False, {}  # DOC Gym v26 has additional 'truncated' boolean
 
     def lay_pheromone(self, pos: tuple[int, int], amount: int):
         """
@@ -506,7 +506,7 @@ class Slime(gym.Env):
         self.rewards.append(cur_reward)
         return cur_reward
 
-    def reset(self):
+    def reset(self, **kwargs):
         # empty stuff
         self.rewards = []
         self.observation_space = BooleanSpace(size=2)
@@ -525,7 +525,7 @@ class Slime(gym.Env):
         for p in self.patches:
             self.patches[p]['chemical'] = 0.0
 
-        return self.observation_space.observe(), 0, False, {}  # TODO check if 0 makes sense
+        return self.observation_space.observe(), {}
 
     def render(self, **kwargs):
         for event in pygame.event.get():
