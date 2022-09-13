@@ -576,7 +576,7 @@ class Slime(gym.Env):
 
 
 if __name__ == "__main__":
-    PARAMS_FILE = "../agents/single-agent-params.json"
+    PARAMS_FILE = "single-agent-params.json"
     EPISODES = 5
     LOG_EVERY = 1
 
@@ -589,7 +589,7 @@ if __name__ == "__main__":
         print(
             f"-------------------------------------------\nEPISODE: {ep}\n-------------------------------------------")
         for tick in range(params['episode_ticks']):
-            observation, reward, done, info = env.step(env.action_space.sample())
+            observation, reward, _, _, _ = env.step(env.action_space.sample())
             if tick % LOG_EVERY == 0:
                 print(f"{tick}: {observation}, {reward}")
             env.render()
