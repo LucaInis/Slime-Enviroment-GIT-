@@ -2,6 +2,7 @@ import json
 import random
 import sys
 from typing import Optional
+from itertools import product
 
 import gym
 import numpy as np
@@ -18,7 +19,7 @@ GREEN = (0, 190, 0)
 class BooleanSpace(gym.Space):
     @property
     def is_np_flattenable(self):
-        return False
+        return True
 
     def __init__(self, size=None):
         """
@@ -27,43 +28,19 @@ class BooleanSpace(gym.Space):
         """
         assert isinstance(size, int) and size > 0
         self.size = size
-        self.values = [False for _ in range(self.size)]
-        gym.Space.__init__(self, (), bool)
+        self._values = list(product([True, False], repeat=self.size))
+        gym.Space.__init__(self, (2,), bool)
 
     def contains(self, x):
-        return x in self.values
+        return x in self._values
 
     def sample(self):
-        return [random.choice([True, False]) for _ in range(self.size)]
+        return random.choice(self._values)
         # return self.values
-
-    def observe(self):
-        """
-        Get the current observation
-        :return: the current observation
-        """
-        return self.values
-
-    def change(self, p, value):
-        """
-        Set a specific boolean value for the current observation
-        :param p: which boolean values to change (position index)
-        :param value: the boolean value to set
-        :return: None
-        """
-        self.values[p] = value
-
-    def change_all(self, values):
-        """
-        Set all the boolean values for the current observation
-        :param values: the boolean values to set
-        :return: None
-        """
-        self.values = values
 
 
 class Slime(gym.Env):
-    metadata = {"render_modes": "human", "render_fps": 30}
+    metadata = {"render_modes": ["human"], "render_fps": 30}
 
     def __init__(self,
                  render_mode: Optional[str] = None,
@@ -308,10 +285,9 @@ class Slime(gym.Env):
         self._diffuse()
         self._evaporate()
 
-        self.observation_space = self._get_obs()
         cur_reward = self.reward_cluster_and_time_punish_time()
 
-        return self.observation_space.observe(), cur_reward, False, False, {}  # DOC Gym v26 has additional 'truncated' boolean
+        return self._get_obs(), cur_reward, False, False, {}  # DOC Gym v26 has additional 'truncated' boolean
 
     def lay_pheromone(self, pos: tuple[int, int], amount: int):
         """
@@ -506,10 +482,10 @@ class Slime(gym.Env):
         self.rewards.append(cur_reward)
         return cur_reward
 
-    def reset(self, **kwargs):
+    def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
         # empty stuff
         self.rewards = []
-        self.observation_space = BooleanSpace(size=2)
         self.cluster_ticks = 0
 
         # re-position learner turtle
@@ -525,7 +501,7 @@ class Slime(gym.Env):
         for p in self.patches:
             self.patches[p]['chemical'] = 0.0
 
-        return self.observation_space.observe(), {}
+        return self._get_obs(), {}
 
     def render(self, **kwargs):
         for event in pygame.event.get():
@@ -570,13 +546,11 @@ class Slime(gym.Env):
             pygame.quit()
 
     def _get_obs(self):
-        new_space = BooleanSpace(size=2)
-        new_space.change_all([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
-        return new_space
+        return self._compute_cluster() >= self.cluster_threshold, self._check_chemical()
 
 
 if __name__ == "__main__":
-    PARAMS_FILE = "single-agent-params.json"
+    PARAMS_FILE = "../agents/single-agent-params.json"
     EPISODES = 5
     LOG_EVERY = 1
 
