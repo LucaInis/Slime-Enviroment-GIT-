@@ -1,3 +1,4 @@
 gym
 pygame
 pettingzoo
+stable-baselines3
