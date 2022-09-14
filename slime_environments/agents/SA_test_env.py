@@ -3,7 +3,7 @@ from itertools import permutations, combinations, product
 
 import gym
 import slime_environments
-from gym.utils.env_checker import check_env
+from gym.utils.env_checker import check_env, check_reset_seed, check_reset_return_type
 
 from slime_environments.environments.SlimeEnvSingleAgent import BooleanSpace
 
@@ -14,6 +14,8 @@ with open(PARAMS_FILE) as f:
 env = gym.make("Slime-v0", **params)
 
 check_env(env.unwrapped, skip_render_check=False)
+check_reset_seed(env)
+check_reset_return_type(env)
 
 # space = BooleanSpace(size=2)
 # print(f"size={space.size}, shape={space.shape}, values={space._values}, sample={space.sample()}")
