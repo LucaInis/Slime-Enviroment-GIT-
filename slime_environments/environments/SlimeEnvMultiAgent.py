@@ -71,7 +71,7 @@ class Slime(AECEnv):
     def state(self) -> np.ndarray:
         pass
 
-    metadata = {"render_modes": "human"}
+    metadata = {"render_modes": ["human", "server"]}
 
     def __init__(self,
                  render_mode: Optional[str] = None,
@@ -143,6 +143,7 @@ class Slime(AECEnv):
         self.show_chem_text = kwargs['SHOW_CHEM_TEXT']
         self.cluster_font_size = kwargs['CLUSTER_FONT_SIZE']
         self.chemical_font_size = kwargs['CHEMICAL_FONT_SIZE']
+        self.gui = kwargs["gui"]
 
         self.coords = []
         self.offset = self.patch_size // 2
@@ -195,16 +196,16 @@ class Slime(AECEnv):
             size=2)  # DOC [0] = whether the turtle is in a cluster [1] = whether there is chemical in turtle patch
         self.obs_dict = {a: BooleanSpace(size=2) for a in self.agents}
 
-        self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
-        self.clock = pygame.time.Clock()
-        pygame.font.init()
-        self.cluster_font = pygame.font.SysFont("arial", self.cluster_font_size)
-        self.chemical_font = pygame.font.SysFont("arial", self.chemical_font_size)
+        if self.gui:
+            self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
+            self.clock = pygame.time.Clock()
+            pygame.font.init()
+            self.cluster_font = pygame.font.SysFont("arial", self.cluster_font_size)
+            self.chemical_font = pygame.font.SysFont("arial", self.chemical_font_size)
+            self.first_gui = True
 
         self.rewards = {i: [] for i in range(self.population, pop_tot)}
         self.cluster_ticks = {i: 0 for i in range(self.population, pop_tot)}
-
-        self.first_gui = True
 
     def _find_neighbours_cascade(self, neighbours: dict, area: int):
         """
@@ -605,47 +606,50 @@ class Slime(AECEnv):
         # return self.obs_dict[self.agent], 0, False, {}
 
     def render(self, **kwargs):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:  # window closed -> program quits
-                pygame.quit()
+        if self.gui:
 
-        if self.first_gui:
-            self.first_gui = False
-            pygame.init()
-            pygame.display.set_caption("SLIME")
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:  # window closed -> program quits
+                    pygame.quit()
 
-        self.screen.fill(BLACK)
-        # draw patches
-        for p in self.patches:
-            chem = round(self.patches[p]['chemical']) * self.shade_strength
-            pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),
-                             pygame.Rect(p[0] - self.offset, p[1] - self.offset, self.patch_size, self.patch_size))
-            if self.show_chem_text and (not sys.gettrace() is None or
-                                        self.patches[p][
-                                            'chemical'] >= self.sniff_threshold):  # if debugging show text everywhere, even 0
-                text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
-                self.screen.blit(text, text.get_rect(center=p))
+            if self.first_gui:
+                self.first_gui = False
+                pygame.init()
+                pygame.display.set_caption("SLIME")
 
-        # draw learners
-        for learner in self.learners.values():
-            pygame.draw.circle(self.screen, RED, (learner['pos'][0], learner['pos'][1]), self.turtle_size // 2)
-        # draw NON learners
-        for turtle in self.turtles.values():
-            pygame.draw.circle(self.screen, BLUE, (turtle['pos'][0], turtle['pos'][1]), self.turtle_size // 2)
+            self.screen.fill(BLACK)
+            # draw patches
+            for p in self.patches:
+                chem = round(self.patches[p]['chemical']) * self.shade_strength
+                pygame.draw.rect(self.screen, (0, chem if chem <= 255 else 255, 0),
+                                 pygame.Rect(p[0] - self.offset, p[1] - self.offset, self.patch_size, self.patch_size))
+                if self.show_chem_text and (not sys.gettrace() is None or
+                                            self.patches[p][
+                                                'chemical'] >= self.sniff_threshold):  # if debugging show text everywhere, even 0
+                    text = self.chemical_font.render(str(round(self.patches[p]['chemical'], 1)), True, GREEN)
+                    self.screen.blit(text, text.get_rect(center=p))
 
-        for p in self.patches:
-            if len(self.patches[p]['turtles']) > 1:
-                text = self.cluster_font.render(str(len(self.patches[p]['turtles'])), True,
-                                                RED if -1 in self.patches[p]['turtles'] else WHITE)
-                self.screen.blit(text, text.get_rect(center=p))
+            # draw learners
+            for learner in self.learners.values():
+                pygame.draw.circle(self.screen, RED, (learner['pos'][0], learner['pos'][1]), self.turtle_size // 2)
+            # draw NON learners
+            for turtle in self.turtles.values():
+                pygame.draw.circle(self.screen, BLUE, (turtle['pos'][0], turtle['pos'][1]), self.turtle_size // 2)
 
-        self.clock.tick(self.fps)
-        pygame.display.flip()
+            for p in self.patches:
+                if len(self.patches[p]['turtles']) > 1:
+                    text = self.cluster_font.render(str(len(self.patches[p]['turtles'])), True,
+                                                    RED if -1 in self.patches[p]['turtles'] else WHITE)
+                    self.screen.blit(text, text.get_rect(center=p))
+
+            self.clock.tick(self.fps)
+            pygame.display.flip()
 
     def close(self):
-        if self.screen is not None:
-            pygame.display.quit()
-            pygame.quit()
+        if self.gui:
+            if self.screen is not None:
+                pygame.display.quit()
+                pygame.quit()
 
 
 if __name__ == "__main__":
@@ -655,7 +659,11 @@ if __name__ == "__main__":
 
     with open(PARAMS_FILE) as f:
         params = json.load(f)
-    env = Slime(render_mode="human", **params)
+    if params["gui"]:
+        render = "human"
+    else:
+        render = "server"
+    env = Slime(render_mode=render, **params)
 
     for ep in range(1, EPISODES + 1):
         env.reset()

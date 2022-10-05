@@ -22,5 +22,6 @@
   "SHADE_STRENGTH": 10,
   "SHOW_CHEM_TEXT": false,
   "CLUSTER_FONT_SIZE": 12,
-  "CHEMICAL_FONT_SIZE": 8
+  "CHEMICAL_FONT_SIZE": 8,
+  "gui": true
 }
