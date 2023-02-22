@@ -54,7 +54,7 @@ reward_dict = {str(ep): 0 for ep in range(1, TRAIN_EPISODES+1)}
 cluster_dict = {}
 
 
-def observation_to_int_map(obs: [bool, bool]):
+def observation_to_int_map(obs):
     if sum(obs) == 0:  # DOC [False, False]
         mapped = sum(obs)  # 0
     elif sum(obs) == 2:  # DOC [True, True]
@@ -69,7 +69,7 @@ def observation_to_int_map(obs: [bool, bool]):
 # TRAINING
 print("Start training...")
 for ep in range(1, TRAIN_EPISODES+1):
-    observation, _ = env.reset()
+    observation = env.reset()
     obs = observation_to_int_map(observation)
     for tick in range(1, params['episode_ticks']+1):
         if random.uniform(0, 1) < epsilon:
@@ -77,7 +77,7 @@ for ep in range(1, TRAIN_EPISODES+1):
         else:
             action = np.argmax(q_table[obs])  # Exploit learned values
 
-        next_observation, reward, _, _, _ = env.step(action)
+        next_observation, reward, _, _ = env.step(action)
         next_obs = observation_to_int_map(next_observation)
 
         old_value = q_table[obs][action]
@@ -115,7 +115,7 @@ for ep in range(1, TEST_EPISODES+1):
     obs = observation_to_int_map(observation)
     for tick in range(params['episode_ticks']):
         action = np.argmax(q_table[obs])
-        observation, reward, _, _, _ = env.step(action)
+        observation, reward, _, _, = env.step(action)
         obs = observation_to_int_map(observation)
         reward_episode += reward
         env.render()
