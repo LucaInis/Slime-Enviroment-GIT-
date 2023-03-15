@@ -344,7 +344,7 @@ class Slime(gym.Env):
             if self.patches[patch]['chemical'] > 0:
                 self.patches[patch]['chemical'] *= self.evaporation
 
-    def walk(self, turtle, _id: int):
+    def walk(self, turtle: dict[str: tuple[int, int]], _id: int):
         """
         Action 0: move in random direction (8 sorrounding cells)
 
@@ -360,7 +360,7 @@ class Slime(gym.Env):
         turtle['pos'] = (x2, y2)
         self.patches[turtle['pos']]['turtles'].append(_id)
 
-    def follow_pheromone(self, ph_coords, turtle, _id: int):
+    def follow_pheromone(self, ph_coords: tuple[int, int], turtle: dict[str: tuple[int, int]], _id: int):
         """
         Action 2: move turtle towards greatest pheromone found
 
@@ -397,7 +397,7 @@ class Slime(gym.Env):
         turtle['pos'] = (x, y)
         self.patches[turtle['pos']]['turtles'].append(_id)
 
-    def _find_max_pheromone(self, pos):
+    def _find_max_pheromone(self, pos: tuple[int, int]):
         """
         Find where the maximum pheromone level is within a square controlled by self.smell_area centred in 'pos'.
         Following pheromone modeis controlled by param self.follow_mode:
