@@ -1,0 +1,37 @@
+{
+  "population": 50,
+  "sniff_threshold": 0.9,
+  "diffuse_area": 3,
+  "diffuse_mode": "cascade",
+  "follow_mode": "prob",
+  "smell_area": 5,
+  "lay_area": 1,
+  "lay_amount": 3,
+  "evaporation": 0.9,
+  "cluster_threshold": 30,
+  "cluster_radius": 10,
+  "rew": 100,
+  "penalty": -1,
+  "episode_ticks": 500,
+  "W": 66,
+  "H": 38,
+  "PATCH_SIZE": 20,
+  "TURTLE_SIZE": 16,
+  "FPS": 30,
+  "SHADE_STRENGTH": 10,
+  "SHOW_CHEM_TEXT": false,
+  "CLUSTER_FONT_SIZE": 12,
+  "CHEMICAL_FONT_SIZE": 8
+}
+----------
+TRAIN_EPISODES = 2
+TEST_EPISODES = 2
+----------
+alpha = 0.2
+gamma = 0.8
+epsilon = 0.9
+decay = 0.9998
+----------
+Episode, Tick, Avg cluster size X tick, move-toward-chemical, random-walk, drop-chemical, Avg reward X episode
+1, 500, -1, 182, 145, 173, 5196725.440000001
+2, 1000, -1, 163, 176, 161, 2886389.080000002
