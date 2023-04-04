@@ -1,4 +1,5 @@
 gym
+importlib-metadata==4.13
 pygame
 pettingzoo
 stable-baselines3

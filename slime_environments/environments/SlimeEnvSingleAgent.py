@@ -8,6 +8,7 @@ import gym
 import numpy as np
 import pygame
 from gym import spaces
+from gym.spaces import MultiBinary
 
 BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
@@ -152,7 +153,7 @@ class Slime(gym.Env):
         self._find_neighbours(self.cluster_patches, self.cluster_radius)
 
         self.action_space = spaces.Discrete(3)  # DOC 0 = walk, 1 = lay_pheromone, 2 = follow_pheromone TODO as dict
-        self.observation_space = BooleanSpace(size=2)  # DOC [0] = whether the turtle is in a cluster [1] = whether there is chemical in turtle patch
+        self.observation_space = MultiBinary(2)  # DOC [0] = whether the turtle is in a cluster [1] = whether there is chemical in turtle patch
         self._action_to_name = {0: "random-walk", 1: "drop-chemical", 2: "move-toward-chemical"}
 
         self.screen = pygame.display.set_mode((self.W_pixels, self.H_pixels))
@@ -287,9 +288,9 @@ class Slime(gym.Env):
 
         cur_reward = self.reward_cluster_and_time_punish_time()
 
-        return self._get_obs(), cur_reward, False, False, {}  # DOC Gym v26 has additional 'truncated' boolean
+        return self._get_obs(), cur_reward, False, {}  # DOC Gym v26 has additional 'truncated' boolean
 
-    def lay_pheromone(self, pos: tuple[int, int], amount: int):
+    def lay_pheromone(self, pos, amount: int):
         """
         Lay 'amount' pheromone in square 'area' centred in 'pos'
 
@@ -482,8 +483,8 @@ class Slime(gym.Env):
         self.rewards.append(cur_reward)
         return cur_reward
 
-    def reset(self, seed=None, options=None):
-        super().reset(seed=seed)
+    def reset(self):
+        # super().reset()
         # empty stuff
         self.rewards = []
         self.cluster_ticks = 0
@@ -501,9 +502,9 @@ class Slime(gym.Env):
         for p in self.patches:
             self.patches[p]['chemical'] = 0.0
 
-        return self._get_obs(), {}
+        return self._get_obs()
 
-    def render(self, **kwargs):
+    def render(self, mode="human",**kwargs):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:  # window closed -> program quits
                 pygame.quit()
@@ -546,7 +547,7 @@ class Slime(gym.Env):
             pygame.quit()
 
     def _get_obs(self):
-        return self._compute_cluster() >= self.cluster_threshold, self._check_chemical()
+        return np.array([self._compute_cluster() >= self.cluster_threshold, self._check_chemical()])
 
 
 if __name__ == "__main__":
